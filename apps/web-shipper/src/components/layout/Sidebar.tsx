@@ -8,6 +8,7 @@ import {
   LifeBuoy,
   Navigation,
   Settings,
+  Store,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { STATUS_COUNTS } from "@/data/shipments";
@@ -23,6 +24,7 @@ const NAV = [
     badge:
       (STATUS_COUNTS.in_transit ?? 0) + (STATUS_COUNTS.delayed ?? 0) || undefined,
   },
+  { to: "/marketplace", labelKey: "nav.marketplace", icon: Store },
   { to: "/tracking", labelKey: "nav.tracking", icon: Navigation },
   { to: "/quotation", labelKey: "nav.quotation", icon: FileText },
   { to: "/load-calculator", labelKey: "nav.loadCalculator", icon: Calculator },

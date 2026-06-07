@@ -31,25 +31,31 @@ pnpm infra:up        # Postgres, Redis, Pub/Sub emulator
 
 ## 3. Run migrations (each owning service)
 ```bash
-pnpm --filter @epl/tenant-svc build && pnpm --filter @epl/tenant-svc migrate
-pnpm --filter @epl/auth-svc   build && pnpm --filter @epl/auth-svc   migrate
-pnpm --filter @epl/load-svc   build && pnpm --filter @epl/load-svc   migrate
+for s in tenant-svc auth-svc load-svc carrier-svc quote-svc shipment-svc; do
+  pnpm --filter @epl/$s build && pnpm --filter @epl/$s migrate
+done
 ```
+(carrier-svc seeds 8 demo carriers; tenant-svc seeds roles/permissions.)
 
 ## 4. Start the services (separate terminals, or `pnpm dev:backend`)
 ```bash
-pnpm --filter @epl/tenant-svc dev   # :8082
-pnpm --filter @epl/auth-svc   dev   # :8081
-pnpm --filter @epl/load-svc   dev   # :8083
-pnpm --filter @epl/api-gateway dev  # :8080  (public ingress)
+pnpm --filter @epl/tenant-svc   dev   # :8082
+pnpm --filter @epl/auth-svc     dev   # :8081
+pnpm --filter @epl/load-svc     dev   # :8083
+pnpm --filter @epl/carrier-svc  dev   # :8084
+pnpm --filter @epl/quote-svc    dev   # :8085
+pnpm --filter @epl/shipment-svc dev   # :8086  (subscribes to bid.accepted)
+pnpm --filter @epl/api-gateway  dev   # :8080  (public ingress)
 ```
 
 ## 5. Verify end-to-end
 ```bash
-bash scripts/verify-phase1.sh
+bash scripts/verify-phase1.sh   # identity + load CRUD/state machine
+bash scripts/verify-phase2.sh   # quote → bids → accept → event → shipment
 ```
-Expected: register → access token → post load (gets `EPL-YYYY-NNNN`) → list shows it →
-duplicate → cancel → tampered token rejected (401) → password login works.
+Phase 1: register → post load → list → duplicate → cancel → 401 on tampered token.
+Phase 2: post load → request quotes (auto carrier bids) → compare → accept cheapest
+→ shipment-svc consumes `bid.accepted` and creates the shipment (polled).
 
 ## 6. Run the SPA against the real backend
 ```bash

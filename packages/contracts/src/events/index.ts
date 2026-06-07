@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { Load, LoadStatus } from "../load";
+import { Bid } from "../quote";
+import { Shipment } from "../shipment";
 
 /**
  * Event envelope + catalog. Every event published to Pub/Sub conforms to
@@ -50,6 +52,20 @@ export const LoadEventType = {
   Duplicated: "load.duplicated",
 } as const;
 
+// ── Quote/bid event types ──
+export const QuoteEventType = {
+  Requested: "quote.requested",
+  BidSubmitted: "bid.submitted",
+  BidAccepted: "bid.accepted",
+} as const;
+
+// ── Shipment event types ──
+export const ShipmentEventType = {
+  Created: "shipment.created",
+  Milestone: "shipment.milestone",
+  Delivered: "shipment.delivered",
+} as const;
+
 // ── Payload schemas (load domain) ──
 export const LoadPostedPayload = z.object({ load: Load });
 export type LoadPostedPayload = z.infer<typeof LoadPostedPayload>;
@@ -61,3 +77,15 @@ export const LoadStatusChangedPayload = z.object({
   to: LoadStatus,
 });
 export type LoadStatusChangedPayload = z.infer<typeof LoadStatusChangedPayload>;
+
+// ── Payload schemas (quote/shipment domain) ──
+export const BidAcceptedPayload = z.object({
+  quoteId: z.string().uuid(),
+  loadId: z.string().uuid(),
+  reference: z.string(),
+  bid: Bid,
+});
+export type BidAcceptedPayload = z.infer<typeof BidAcceptedPayload>;
+
+export const ShipmentCreatedPayload = z.object({ shipment: Shipment });
+export type ShipmentCreatedPayload = z.infer<typeof ShipmentCreatedPayload>;

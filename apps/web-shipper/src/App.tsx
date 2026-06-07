@@ -8,6 +8,7 @@ import { Tracking } from "@/pages/Tracking";
 import { Quotation } from "@/pages/Quotation";
 import { LoadCalculator } from "@/pages/LoadCalculator";
 import { PostLoad } from "@/pages/PostLoad";
+import { Marketplace } from "@/pages/Marketplace";
 import { Login } from "@/pages/Login";
 import { NotFound } from "@/pages/NotFound";
 import { useAuth } from "@/api/AuthContext";
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="shipments" element={<Shipments />} />
         <Route path="shipments/:id" element={<ShipmentDetail />} />
         <Route path="post-load" element={<PostLoad />} />
+        <Route path="marketplace" element={<Marketplace />} />
         <Route path="tracking" element={<Tracking />} />
         <Route path="tracking/:id" element={<Tracking />} />
         <Route path="quotation" element={<Quotation />} />

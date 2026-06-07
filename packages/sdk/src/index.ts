@@ -1,10 +1,15 @@
 import type {
   AuthTokens,
+  Carrier,
   CreateLoadInput,
+  CreateQuoteInput,
   Load,
   LoadStatus,
   LoginInput,
+  Quote,
   RegisterInput,
+  Shipment,
+  SubmitBidInput,
   UpdateLoadInput,
 } from "@epl/contracts";
 
@@ -163,6 +168,59 @@ export class EplClient {
   duplicateLoad(id: string): Promise<Load> {
     return this.request<Load>(`/loads/${id}/duplicate`, { method: "POST" });
   }
+
+  // ── Quotes & bids ──
+  listQuotes(): Promise<Quote[]> {
+    return this.request<Quote[]>("/quotes");
+  }
+
+  getQuote(id: string): Promise<Quote> {
+    return this.request<Quote>(`/quotes/${id}`);
+  }
+
+  createQuote(input: CreateQuoteInput): Promise<Quote> {
+    return this.request<Quote>("/quotes", { method: "POST", body: JSON.stringify(input) });
+  }
+
+  submitBid(quoteId: string, input: SubmitBidInput): Promise<unknown> {
+    return this.request(`/quotes/${quoteId}/bids`, { method: "POST", body: JSON.stringify(input) });
+  }
+
+  acceptBid(quoteId: string, bidId: string): Promise<Quote> {
+    return this.request<Quote>(`/quotes/${quoteId}/bids/${bidId}/accept`, { method: "POST" });
+  }
+
+  // ── Shipments ──
+  listShipments(): Promise<Shipment[]> {
+    return this.request<Shipment[]>("/shipments");
+  }
+
+  getShipment(id: string): Promise<Shipment> {
+    return this.request<Shipment>(`/shipments/${id}`);
+  }
+
+  // ── Carriers ──
+  listCarriers(mode?: string): Promise<Carrier[]> {
+    const qs = mode ? `?mode=${encodeURIComponent(mode)}` : "";
+    return this.request<Carrier[]>(`/carriers${qs}`);
+  }
+
+  rateCarrier(id: string, stars: number, comment?: string): Promise<Carrier> {
+    return this.request<Carrier>(`/carriers/${id}/rate`, {
+      method: "POST",
+      body: JSON.stringify({ stars, comment }),
+    });
+  }
 }
 
-export type { Load, LoadStatus, CreateLoadInput, UpdateLoadInput, AuthTokens } from "@epl/contracts";
+export type {
+  Load,
+  LoadStatus,
+  CreateLoadInput,
+  UpdateLoadInput,
+  AuthTokens,
+  Quote,
+  CreateQuoteInput,
+  Shipment,
+  Carrier,
+} from "@epl/contracts";

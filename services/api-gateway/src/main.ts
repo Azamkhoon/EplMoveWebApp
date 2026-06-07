@@ -60,8 +60,11 @@ async function bootstrap() {
   // Public: auth routes pass through to auth-svc (login/register/refresh/otp/jwks).
   app.use("/auth", proxy(config.AUTH_SVC_URL));
 
-  // Protected: verify JWT → attach identity → proxy to load-svc.
+  // Protected: verify JWT → attach identity → proxy to the domain services.
   app.use("/loads", requireAuth(), proxy(config.LOAD_SVC_URL));
+  app.use("/quotes", requireAuth(), proxy(config.QUOTE_SVC_URL));
+  app.use("/shipments", requireAuth(), proxy(config.SHIPMENT_SVC_URL));
+  app.use("/carriers", requireAuth(), proxy(config.CARRIER_SVC_URL));
 
   app.use((_req, res) =>
     res.status(404).json({ error: { code: "NOT_FOUND", message: "no route" } }),
