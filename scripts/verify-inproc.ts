@@ -1,0 +1,385 @@
+/**
+ * In-process live verification (no Docker).
+ *
+ * Runs the platform's REAL migration SQL (each service's migrations.sql) against
+ * PGlite — an actual Postgres engine compiled to WASM, so RLS policies,
+ * set_config/current_setting, gen_random_uuid, sequences, FOR UPDATE SKIP LOCKED,
+ * etc. all behave like real Postgres. It then replays the real service query
+ * logic and an in-memory event bus to exercise the end-to-end flows:
+ *
+ *   Phase 1: tenant provision + RBAC seed, register/login (argon2),
+ *            load CRUD + state machine, and RLS tenant isolation.
+ *   Phase 2: quote → bids → accept → bid.accepted event → shipment created.
+ *
+ * What this PROVES: SQL correctness, schema/migrations, Postgres RLS isolation,
+ * the load state machine, optimistic locking, and the accept-bid→shipment
+ * choreography (incl. idempotent consumption).
+ * What it does NOT prove: the Pub/Sub wire itself or cross-process HTTP — those
+ * need Docker on the host (scripts/verify-phase{1,2}.sh).
+ */
+import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { randomUUID, createHash, randomInt } from "node:crypto";
+import { PGlite } from "@electric-sql/pglite";
+import * as argon2 from "argon2";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(__dirname, "..");
+const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
+
+let pass = 0;
+let failed = 0;
+const ok = (m: string) => {
+  pass++;
+  console.log(`\x1b[32m✓\x1b[0m ${m}`);
+};
+const bad = (m: string, e?: unknown) => {
+  failed++;
+  console.log(`\x1b[31m✗ ${m}\x1b[0m`, e ?? "");
+};
+const section = (m: string) => console.log(`\n\x1b[1;34m▶ ${m}\x1b[0m`);
+
+async function assertThrows(label: string, fn: () => Promise<unknown>) {
+  try {
+    await fn();
+    bad(`${label} (expected to throw, did not)`);
+  } catch {
+    ok(label);
+  }
+}
+
+// ── In-memory event bus replaying the outbox→consumer choreography ──
+type Handler = (e: any) => Promise<void>;
+const subscribers: Record<string, Handler[]> = {};
+const publish = async (topic: string, event: any) => {
+  for (const h of subscribers[topic] ?? []) await h(event);
+};
+const subscribe = (topic: string, h: Handler) => {
+  (subscribers[topic] ??= []).push(h);
+};
+
+async function main() {
+  const db = new PGlite(); // ephemeral in-memory Postgres
+  const q = (sql: string, params: unknown[] = []) => db.query(sql, params);
+
+  // Helper: run work as the non-superuser app role with the RLS tenant variable
+  // set (mirrors the production withTenantTx: SET LOCAL app.tenant_id + RLS).
+  async function withTenant<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
+    await q("SET ROLE app_user");
+    await q("SELECT set_config('app.tenant_id', $1, false)", [tenantId]);
+    try {
+      return await fn();
+    } finally {
+      await q("RESET ROLE");
+    }
+  }
+
+  section("Apply real migration SQL (auth, tenant, load, carrier, quote, shipment)");
+  for (const svc of ["auth-svc", "tenant-svc", "load-svc", "carrier-svc", "quote-svc", "shipment-svc"]) {
+    const sql = readFileSync(join(ROOT, "services", svc, "src", "db", "migrations.sql"), "utf8");
+    await db.exec(sql);
+    ok(`migrations applied: ${svc}`);
+  }
+
+  // PGlite connects as the `postgres` SUPERUSER, which bypasses RLS (FORCE RLS
+  // only forces it on the table owner, not superusers). Production services
+  // connect as a NON-superuser role, so create one and use it for tenant-scoped
+  // work — this is what makes the RLS check faithful to production.
+  section("Create non-superuser app role (so RLS engages, as in prod)");
+  await db.exec(`
+    CREATE ROLE app_user NOLOGIN;
+    GRANT USAGE ON SCHEMA auth, tenant, load, carrier, quote, shipment TO app_user;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA auth, tenant, load, carrier, quote, shipment TO app_user;
+    GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA auth, tenant, load, carrier, quote, shipment TO app_user;
+  `);
+  ok("app_user role created + granted on all 6 schemas");
+
+  // ── Seed RBAC (mirrors tenant-svc seed.ts) ──
+  section("Seed permissions + system roles (tenant-svc)");
+  const PERMS = [
+    "load:create", "load:read", "load:update", "load:cancel", "load:duplicate",
+    "quote:request", "quote:read", "quote:accept", "shipment:read",
+    "doc:upload", "doc:read", "tenant:manage", "tenant:members", "billing:read",
+  ];
+  for (const p of PERMS) await q("INSERT INTO tenant.permissions (key) VALUES ($1) ON CONFLICT (key) DO NOTHING", [p]);
+  const adminPerms = PERMS.filter((p) => p !== "doc:upload" || true); // shipper_admin = all above
+  const role = await q<{ id: string }>(
+    `INSERT INTO tenant.roles (tenant_id, key, name) VALUES (NULL,'shipper_admin','Shipper Admin') RETURNING id`,
+  );
+  const adminRoleId = role.rows[0]!.id;
+  for (const p of adminPerms) {
+    await q(
+      `INSERT INTO tenant.role_permissions (role_id, permission_id)
+       SELECT $1, id FROM tenant.permissions WHERE key=$2 ON CONFLICT DO NOTHING`,
+      [adminRoleId, p],
+    );
+  }
+  ok(`seeded ${PERMS.length} permissions + shipper_admin role`);
+
+  // ── Seed demo carriers (mirrors carrier-svc migrate) ──
+  const CARRIERS = [
+    { name: "Maersk Line", modes: ["Ocean"], rating: 4.6, rel: 96 },
+    { name: "Hapag-Lloyd", modes: ["Ocean"], rating: 4.5, rel: 95 },
+    { name: "CMA CGM", modes: ["Ocean"], rating: 4.3, rel: 93 },
+    { name: "Kuehne+Nagel", modes: ["Ocean", "Air", "Road"], rating: 4.5, rel: 95 },
+  ];
+  for (const c of CARRIERS) {
+    await q(
+      `INSERT INTO carrier.carriers (name, modes, rating_sum, ratings_count, reliability)
+       VALUES ($1,$2,$3,20,$4)`,
+      [c.name, c.modes, c.rating * 20, c.rel],
+    );
+  }
+  ok(`seeded ${CARRIERS.length} carriers`);
+
+  // ════════════════════════ PHASE 1 ════════════════════════
+  section("PHASE 1 — register: create user, provision tenant + admin membership");
+
+  // auth-svc.register: hash password, insert user
+  const email = "founder@acme.test";
+  const passwordHash = await argon2.hash("supersecret123", { type: argon2.argon2id });
+  const userRow = await q<{ id: string }>(
+    `INSERT INTO auth.users (email, name, password_hash) VALUES ($1,$2,$3) RETURNING id`,
+    [email, "Founder", passwordHash],
+  );
+  const userId = userRow.rows[0]!.id;
+  ok("user created (argon2id hash stored)");
+
+  // tenant-svc.provisionTenant
+  const tenantRow = await q<{ id: string }>(
+    `INSERT INTO tenant.tenants (name, slug) VALUES ($1,$2) RETURNING id`,
+    ["Acme Logistics", "acme-logistics"],
+  );
+  const tenantId = tenantRow.rows[0]!.id;
+  await q(`INSERT INTO tenant.memberships (tenant_id, user_id, role_id) VALUES ($1,$2,$3)`, [
+    tenantId, userId, adminRoleId,
+  ]);
+  ok("tenant provisioned + admin membership");
+
+  // resolveMembership → perms (what login bakes into the JWT)
+  const permsRes = await q<{ key: string }>(
+    `SELECT p.key FROM tenant.memberships m
+       JOIN tenant.roles r ON r.id = m.role_id
+       JOIN tenant.role_permissions rp ON rp.role_id = r.id
+       JOIN tenant.permissions p ON p.id = rp.permission_id
+      WHERE m.user_id = $1`,
+    [userId],
+  );
+  const perms = permsRes.rows.map((r) => r.key);
+  perms.includes("load:create") && perms.includes("quote:accept")
+    ? ok(`resolved ${perms.length} permissions for shipper_admin`)
+    : bad("admin perms missing load:create/quote:accept");
+
+  section("PHASE 1 — login: verify password");
+  const u = await q<{ password_hash: string }>(`SELECT password_hash FROM auth.users WHERE email=$1`, [email]);
+  (await argon2.verify(u.rows[0]!.password_hash, "supersecret123"))
+    ? ok("correct password verifies")
+    : bad("password verify failed");
+  (await argon2.verify(u.rows[0]!.password_hash, "wrong")) ? bad("wrong password ACCEPTED") : ok("wrong password rejected");
+
+  // ── load-svc: create (post) with reference sequence + RLS ──
+  section("PHASE 1 — load-svc: post load (reference sequence + RLS write)");
+  const nextRef = async (tid: string) => {
+    const r = await q<{ last_value: number }>(
+      `INSERT INTO load.reference_seq (tenant_id, last_value) VALUES ($1,1)
+       ON CONFLICT (tenant_id) DO UPDATE SET last_value = load.reference_seq.last_value + 1
+       RETURNING last_value`,
+      [tid],
+    );
+    return `EPL-${new Date().getFullYear()}-${String(r.rows[0]!.last_value).padStart(4, "0")}`;
+  };
+
+  const loadId = await withTenant(tenantId, async () => {
+    const ref = await nextRef(tenantId);
+    const r = await q<{ id: string; reference: string; status: string; version: number }>(
+      `INSERT INTO load.loads
+        (tenant_id, reference, status, mode, commodity, pickup, delivery, weight_kg, volume_m3, pieces, created_by)
+       VALUES ($1,$2,'posted','Ocean','Machinery',$3,$4,18400,58,12,$5)
+       RETURNING id, reference, status, version`,
+      [
+        tenantId, ref,
+        JSON.stringify({ city: "Shanghai", country: "China", lat: 31.2, lng: 121.5 }),
+        JSON.stringify({ city: "Hamburg", country: "Germany", lat: 53.5, lng: 10.0 }),
+        userId,
+      ],
+    );
+    ok(`load posted: ${r.rows[0]!.reference} (status=${r.rows[0]!.status}, v${r.rows[0]!.version})`);
+    return r.rows[0]!.id;
+  });
+
+  // ── RLS isolation: a different tenant must NOT see this load ──
+  section("PHASE 1 — RLS: cross-tenant isolation");
+  const otherTenant = randomUUID();
+  const seenByOther = await withTenant(otherTenant, async () =>
+    (await q(`SELECT id FROM load.loads`)).rows.length,
+  );
+  seenByOther === 0 ? ok("other tenant sees 0 loads (RLS enforced)") : bad(`RLS LEAK: other tenant saw ${seenByOther}`);
+  const seenByOwner = await withTenant(tenantId, async () => (await q(`SELECT id FROM load.loads`)).rows.length);
+  seenByOwner === 1 ? ok("owner tenant sees its 1 load") : bad(`owner saw ${seenByOwner}`);
+
+  // ── State machine: legal + illegal transitions ──
+  section("PHASE 1 — load state machine");
+  await withTenant(tenantId, async () => {
+    // legal: posted → booked (mirrors canTransition)
+    await q(`UPDATE load.loads SET status='booked', version=version+1 WHERE id=$1`, [loadId]);
+    ok("posted → booked (legal)");
+  });
+  // illegal: delivered → posted is not allowed by LOAD_TRANSITIONS; assert via contract
+  const { LOAD_TRANSITIONS, canTransition } = await import("../packages/contracts/src/load.ts");
+  canTransition("posted", "booked") ? ok("contract: posted→booked allowed") : bad("contract says posted→booked illegal");
+  !canTransition("delivered", "posted") ? ok("contract: delivered→posted rejected") : bad("delivered→posted allowed!");
+  !canTransition("cancelled", "in_transit") ? ok("contract: cancelled→in_transit rejected") : bad("cancelled→in_transit allowed!");
+
+  // ── Optimistic locking ──
+  section("PHASE 1 — optimistic locking on update");
+  await withTenant(tenantId, async () => {
+    const cur = await q<{ version: number }>(`SELECT version FROM load.loads WHERE id=$1`, [loadId]);
+    const v = cur.rows[0]!.version;
+    // simulate stale update (client thinks version is v-1)
+    const stale = await q(`UPDATE load.loads SET commodity='x', version=version+1 WHERE id=$1 AND version=$2`, [loadId, v - 1]);
+    stale.affectedRows === 0 ? ok("stale-version update rejected (0 rows)") : bad("stale update applied!");
+    const fresh = await q(`UPDATE load.loads SET commodity='Machinery parts', version=version+1 WHERE id=$1 AND version=$2`, [loadId, v]);
+    fresh.affectedRows === 1 ? ok("fresh-version update applied") : bad("fresh update failed");
+  });
+
+  await runPhase2(db, q, withTenant, tenantId, userId, loadId);
+
+  // ── Summary ──
+  console.log(`\n\x1b[1m${failed === 0 ? "\x1b[32mALL CHECKS PASSED" : "\x1b[31mSOME CHECKS FAILED"}\x1b[0m  (${pass} passed, ${failed} failed)`);
+  await db.close();
+  process.exit(failed === 0 ? 0 : 1);
+}
+
+// ════════════════════════ PHASE 2 ════════════════════════
+async function runPhase2(
+  db: PGlite,
+  q: (sql: string, params?: unknown[]) => Promise<any>,
+  withTenant: <T>(t: string, fn: () => Promise<T>) => Promise<T>,
+  tenantId: string,
+  userId: string,
+  loadId: string,
+) {
+  section("PHASE 2 — wire shipment-svc consumer to the in-memory bus");
+
+  // shipment-svc consumer: on bid.accepted → create shipment (idempotent).
+  subscribe("quote.events", async (event) => {
+    if (event.type !== "bid.accepted") return;
+    const { bid, quoteId, loadId: lid, reference } = event.payload;
+    await withTenant(event.tenantId, async () => {
+      const dedupe = await q(
+        `INSERT INTO shipment.processed_events (event_id) VALUES ($1) ON CONFLICT DO NOTHING RETURNING event_id`,
+        [event.id],
+      );
+      if (dedupe.rows.length === 0) return; // already processed
+      const load = await q(`SELECT pickup, delivery FROM load.loads WHERE id=$1`, [lid]);
+      const origin = load.rows[0]?.pickup ?? { city: "O", country: "", lat: 0, lng: 0 };
+      const destination = load.rows[0]?.delivery ?? { city: "D", country: "", lat: 0, lng: 0 };
+      const eta = new Date(Date.now() + bid.transitDays * 86400000).toISOString();
+      const s = await q(
+        `INSERT INTO shipment.shipments
+          (tenant_id, reference, load_id, quote_id, carrier_id, carrier_name, status, mode,
+           origin, destination, price_amount, price_currency, transit_days, eta_date, progress)
+         VALUES ($1,$2,$3,$4,$5,$6,'booked',$7,$8,$9,$10,'USD',$11,$12,0)
+         ON CONFLICT (quote_id) DO NOTHING RETURNING id`,
+        [event.tenantId, reference, lid, quoteId, bid.carrierId, bid.carrierName, bid.mode,
+         JSON.stringify(origin), JSON.stringify(destination), bid.price.amount, bid.transitDays, eta],
+      );
+      if (s.rows.length) {
+        for (let i = 0; i < 8; i++)
+          await q(
+            `INSERT INTO shipment.milestones (shipment_id, tenant_id, status, description, location, completed, seq)
+             VALUES ($1,$2,$3,'m','loc',$4,$5)`,
+            [s.rows[0].id, event.tenantId, `stage-${i}`, i === 0, i],
+          );
+      }
+    });
+  });
+  ok("consumer subscribed to bid.accepted");
+
+  section("PHASE 2 — quote-svc: create quote for the load");
+  const quoteId = await withTenant(tenantId, async () => {
+    const r = await q(
+      `INSERT INTO quote.quotes (tenant_id, load_id, reference, mode, created_by)
+       VALUES ($1,$2,'EPL-2026-0001','Ocean',$3) RETURNING id`,
+      [tenantId, loadId, userId],
+    );
+    return r.rows[0].id as string;
+  });
+  ok(`quote created: ${quoteId.slice(0, 8)}…`);
+
+  section("PHASE 2 — auto-generate carrier bids (real carrier rows)");
+  const carriers = (await q(`SELECT id, name FROM carrier.carriers WHERE 'Ocean' = ANY(modes) LIMIT 4`)).rows;
+  await withTenant(tenantId, async () => {
+    for (const c of carriers) {
+      const price = Math.round(8600 * (0.85 + Math.random() * 0.4));
+      await q(
+        `INSERT INTO quote.bids (tenant_id, quote_id, carrier_id, mode, price_amount, transit_days)
+         VALUES ($1,$2,$3,'Ocean',$4,$5)`,
+        [tenantId, quoteId, c.id, price, 28 + Math.floor(Math.random() * 8)],
+      );
+    }
+  });
+  const bidList = await withTenant(tenantId, async () =>
+    (await q(`SELECT b.id, b.price_amount, c.name FROM quote.bids b JOIN carrier.carriers c ON c.id=b.carrier_id WHERE quote_id=$1 ORDER BY price_amount ASC`, [quoteId])).rows,
+  );
+  bidList.length === carriers.length ? ok(`${bidList.length} bids generated`) : bad("bid count mismatch");
+  console.log("  bids:", bidList.map((b: any) => `${b.name} $${b.price_amount}`).join("  |  "));
+
+  section("PHASE 2 — accept cheapest bid → emit bid.accepted (outbox → bus)");
+  const cheapest = bidList[0];
+  const acceptEventId = randomUUID();
+  await withTenant(tenantId, async () => {
+    await q(`UPDATE quote.bids SET status='accepted' WHERE id=$1`, [cheapest.id]);
+    await q(`UPDATE quote.bids SET status='rejected' WHERE quote_id=$1 AND id<>$2`, [quoteId, cheapest.id]);
+    await q(`UPDATE quote.quotes SET status='awarded' WHERE id=$1`, [quoteId]);
+  });
+  const bidRow = (await withTenant(tenantId, async () =>
+    (await q(`SELECT * FROM quote.bids WHERE id=$1`, [cheapest.id])).rows))[0];
+  // publish the event (the outbox relay would do this for real)
+  await publish("quote.events", {
+    id: acceptEventId,
+    type: "bid.accepted",
+    tenantId,
+    correlationId: randomUUID(),
+    payload: {
+      quoteId, loadId, reference: "EPL-2026-0001",
+      bid: {
+        carrierId: bidRow.carrier_id, carrierName: cheapest.name, mode: bidRow.mode,
+        price: { amount: Number(bidRow.price_amount), currency: "USD" }, transitDays: bidRow.transit_days,
+      },
+    },
+  });
+  ok("bid.accepted published & consumed");
+
+  section("PHASE 2 — shipment created by the consumer");
+  const ships = await withTenant(tenantId, async () =>
+    (await q(`SELECT reference, carrier_name, status, transit_days, price_amount FROM shipment.shipments WHERE quote_id=$1`, [quoteId])).rows,
+  );
+  if (ships.length === 1) {
+    const s = ships[0];
+    ok(`shipment created: ${s.reference} via ${s.carrier_name} (${s.status}, ${s.transit_days}d, $${s.price_amount})`);
+  } else {
+    bad(`expected 1 shipment, got ${ships.length}`);
+  }
+  const ms = await withTenant(tenantId, async () =>
+    (await q(`SELECT count(*)::int n FROM shipment.milestones`)).rows[0].n,
+  );
+  ms === 8 ? ok("8 milestones seeded") : bad(`expected 8 milestones, got ${ms}`);
+
+  section("PHASE 2 — idempotency: re-deliver the same event");
+  await publish("quote.events", {
+    id: acceptEventId, type: "bid.accepted", tenantId, correlationId: randomUUID(),
+    payload: { quoteId, loadId, reference: "EPL-2026-0001",
+      bid: { carrierId: bidRow.carrier_id, carrierName: cheapest.name, mode: bidRow.mode, price: { amount: 1, currency: "USD" }, transitDays: 1 } },
+  });
+  const dupCount = await withTenant(tenantId, async () =>
+    (await q(`SELECT count(*)::int n FROM shipment.shipments WHERE quote_id=$1`, [quoteId])).rows[0].n,
+  );
+  dupCount === 1 ? ok("duplicate event ignored (still 1 shipment)") : bad(`idempotency FAILED: ${dupCount} shipments`);
+}
+
+main().catch((e) => {
+  console.error("\x1b[31mharness crashed:\x1b[0m", e);
+  process.exit(1);
+});

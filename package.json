@@ -16,9 +16,13 @@
     "dev:shipper": "turbo run dev --filter=web-shipper",
     "dev:backend": "turbo run dev --filter='./services/*'",
     "infra:up": "docker compose -f infra/docker/docker-compose.yml up -d",
-    "infra:down": "docker compose -f infra/docker/docker-compose.yml down"
+    "infra:down": "docker compose -f infra/docker/docker-compose.yml down",
+    "verify:inproc": "node --import tsx scripts/verify-inproc.ts"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.2.12",
+    "argon2": "^0.41.1",
+    "tsx": "^4.19.1",
     "turbo": "^2.1.0",
     "typescript": "^5.5.4"
   }
