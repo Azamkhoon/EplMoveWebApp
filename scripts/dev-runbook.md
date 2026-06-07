@@ -31,7 +31,7 @@ pnpm infra:up        # Postgres, Redis, Pub/Sub emulator
 
 ## 3. Run migrations (each owning service)
 ```bash
-for s in tenant-svc auth-svc load-svc carrier-svc quote-svc shipment-svc; do
+for s in tenant-svc auth-svc load-svc carrier-svc quote-svc shipment-svc tracking-svc doc-svc; do
   pnpm --filter @epl/$s build && pnpm --filter @epl/$s migrate
 done
 ```
@@ -45,14 +45,21 @@ pnpm --filter @epl/load-svc     dev   # :8083
 pnpm --filter @epl/carrier-svc  dev   # :8084
 pnpm --filter @epl/quote-svc    dev   # :8085
 pnpm --filter @epl/shipment-svc dev   # :8086  (subscribes to bid.accepted)
-pnpm --filter @epl/api-gateway  dev   # :8080  (public ingress)
+pnpm --filter @epl/tracking-svc dev   # :8087  (subscribes to shipment.created; WS /ws/tracking)
+pnpm --filter @epl/doc-svc      dev   # :8088  (local file storage by default)
+pnpm --filter @epl/api-gateway  dev   # :8080  (public ingress; proxies WS)
 ```
 
 ## 5. Verify end-to-end
 ```bash
 bash scripts/verify-phase1.sh   # identity + load CRUD/state machine
 bash scripts/verify-phase2.sh   # quote → bids → accept → event → shipment
+pnpm verify:inproc              # no Docker: real Postgres engine (PGlite), phases 1–3
 ```
+`verify:inproc` runs all services' real migration SQL against an in-process
+Postgres (RLS, sequences, state machine, tracking math, doc lifecycle) + an
+in-memory bus — 42 checks, no infra needed. The .sh scripts add the real
+Pub/Sub + cross-process HTTP paths once Docker is up.
 Phase 1: register → post load → list → duplicate → cancel → 401 on tampered token.
 Phase 2: post load → request quotes (auto carrier bids) → compare → accept cheapest
 → shipment-svc consumes `bid.accepted` and creates the shipment (polled).

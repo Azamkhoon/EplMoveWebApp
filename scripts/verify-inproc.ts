@@ -75,8 +75,8 @@ async function main() {
     }
   }
 
-  section("Apply real migration SQL (auth, tenant, load, carrier, quote, shipment)");
-  for (const svc of ["auth-svc", "tenant-svc", "load-svc", "carrier-svc", "quote-svc", "shipment-svc"]) {
+  section("Apply real migration SQL (auth, tenant, load, carrier, quote, shipment, tracking, doc)");
+  for (const svc of ["auth-svc", "tenant-svc", "load-svc", "carrier-svc", "quote-svc", "shipment-svc", "tracking-svc", "doc-svc"]) {
     const sql = readFileSync(join(ROOT, "services", svc, "src", "db", "migrations.sql"), "utf8");
     await db.exec(sql);
     ok(`migrations applied: ${svc}`);
@@ -89,11 +89,11 @@ async function main() {
   section("Create non-superuser app role (so RLS engages, as in prod)");
   await db.exec(`
     CREATE ROLE app_user NOLOGIN;
-    GRANT USAGE ON SCHEMA auth, tenant, load, carrier, quote, shipment TO app_user;
-    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA auth, tenant, load, carrier, quote, shipment TO app_user;
-    GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA auth, tenant, load, carrier, quote, shipment TO app_user;
+    GRANT USAGE ON SCHEMA auth, tenant, load, carrier, quote, shipment, tracking, doc TO app_user;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA auth, tenant, load, carrier, quote, shipment, tracking, doc TO app_user;
+    GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA auth, tenant, load, carrier, quote, shipment, tracking, doc TO app_user;
   `);
-  ok("app_user role created + granted on all 6 schemas");
+  ok("app_user role created + granted on all 8 schemas");
 
   // ── Seed RBAC (mirrors tenant-svc seed.ts) ──
   section("Seed permissions + system roles (tenant-svc)");
@@ -243,7 +243,8 @@ async function main() {
     fresh.affectedRows === 1 ? ok("fresh-version update applied") : bad("fresh update failed");
   });
 
-  await runPhase2(db, q, withTenant, tenantId, userId, loadId);
+  const shipmentId = await runPhase2(db, q, withTenant, tenantId, userId, loadId);
+  await runPhase3(q, withTenant, tenantId, userId, shipmentId);
 
   // ── Summary ──
   console.log(`\n\x1b[1m${failed === 0 ? "\x1b[32mALL CHECKS PASSED" : "\x1b[31mSOME CHECKS FAILED"}\x1b[0m  (${pass} passed, ${failed} failed)`);
@@ -259,7 +260,7 @@ async function runPhase2(
   tenantId: string,
   userId: string,
   loadId: string,
-) {
+): Promise<string> {
   section("PHASE 2 — wire shipment-svc consumer to the in-memory bus");
 
   // shipment-svc consumer: on bid.accepted → create shipment (idempotent).
@@ -377,6 +378,110 @@ async function runPhase2(
     (await q(`SELECT count(*)::int n FROM shipment.shipments WHERE quote_id=$1`, [quoteId])).rows[0].n,
   );
   dupCount === 1 ? ok("duplicate event ignored (still 1 shipment)") : bad(`idempotency FAILED: ${dupCount} shipments`);
+
+  const sid = await withTenant(tenantId, async () =>
+    (await q(`SELECT id FROM shipment.shipments WHERE quote_id=$1`, [quoteId])).rows[0].id,
+  );
+  return sid as string;
+}
+
+// ════════════════════════ PHASE 3 ════════════════════════
+async function runPhase3(
+  q: (sql: string, params?: unknown[]) => Promise<any>,
+  withTenant: <T>(t: string, fn: () => Promise<T>) => Promise<T>,
+  tenantId: string,
+  userId: string,
+  shipmentId: string,
+) {
+  const { haversineKm } = await import("../services/tracking-svc/src/modules/tracking/geo.ts");
+  const origin = { city: "Shanghai", country: "China", lat: 31.2, lng: 121.5 };
+  const destination = { city: "Hamburg", country: "Germany", lat: 53.5, lng: 10.0 };
+  const totalKm = haversineKm(origin, destination);
+
+  section("PHASE 3 — tracking-svc: open channel from shipment.created (consumer)");
+  await withTenant(tenantId, async () => {
+    const eta = new Date(Date.now() + (totalKm / 35) * 3600000).toISOString();
+    await q(
+      `INSERT INTO tracking.states (shipment_id, tenant_id, origin, destination, total_km, lat, lng, progress, remaining_km, eta_date)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,0,$5,$8) ON CONFLICT (shipment_id) DO NOTHING`,
+      [shipmentId, tenantId, JSON.stringify(origin), JSON.stringify(destination), totalKm, origin.lat, origin.lng, eta],
+    );
+  });
+  ok(`tracking channel opened (total ${Math.round(totalKm)} km)`);
+
+  section("PHASE 3 — ingest GPS positions → progress + ETA recompute");
+  // Two reports: midway, then near destination (mirrors tracking.service.ingest math).
+  const ingest = async (lat: number, lng: number) =>
+    withTenant(tenantId, async () => {
+      const here = { lat, lng };
+      const remainingKm = haversineKm(here, destination);
+      const progress = Math.max(0, Math.min(100, Math.round((1 - remainingKm / totalKm) * 100)));
+      await q(`INSERT INTO tracking.positions (shipment_id, tenant_id, lat, lng) VALUES ($1,$2,$3,$4)`, [shipmentId, tenantId, lat, lng]);
+      await q(
+        `UPDATE tracking.states SET lat=$2,lng=$3,progress=$4,remaining_km=$5,updated_at=now() WHERE shipment_id=$1`,
+        [shipmentId, lat, lng, progress, remainingKm],
+      );
+      return progress;
+    });
+
+  const p1 = await ingest(45.0, 60.0); // roughly midway across Eurasia
+  const p2 = await ingest(53.0, 12.0); // near Hamburg
+  p1 > 0 && p1 < 100 ? ok(`midway report → progress ${p1}%`) : bad(`unexpected midway progress ${p1}`);
+  p2 > p1 ? ok(`near-destination report → progress ${p2}% (increasing)`) : bad(`progress did not increase: ${p1}→${p2}`);
+
+  const histN = await withTenant(tenantId, async () =>
+    (await q(`SELECT count(*)::int n FROM tracking.positions WHERE shipment_id=$1`, [shipmentId])).rows[0].n,
+  );
+  histN === 2 ? ok("position history recorded (2 points)") : bad(`expected 2 history rows, got ${histN}`);
+
+  section("PHASE 3 — tracking RLS: other tenant sees no state");
+  const leak = await withTenant(randomUUID(), async () =>
+    (await q(`SELECT count(*)::int n FROM tracking.states`)).rows[0].n,
+  );
+  leak === 0 ? ok("other tenant sees 0 tracking states (RLS)") : bad(`tracking RLS LEAK: ${leak}`);
+
+  section("PHASE 3 — doc-svc: upload invoice + customs, verify, list filters");
+  const upload = async (type: string, name: string, amount?: number) =>
+    withTenant(tenantId, async () => {
+      const r = await q(
+        `INSERT INTO doc.documents (tenant_id, shipment_id, type, name, size_bytes, content_type, storage_key, amount, currency, uploaded_by)
+         VALUES ($1,$2,$3,$4,1024,'application/pdf',$5,$6,$7,$8) RETURNING id, status`,
+        [tenantId, shipmentId, type, name, `${tenantId}/${name}`, amount ?? null, amount ? "USD" : null, userId],
+      );
+      return r.rows[0];
+    });
+
+  const inv = await upload("Commercial Invoice", "invoice.pdf", 7505);
+  await upload("Customs Declaration", "customs.pdf");
+  inv.status === "pending" ? ok("invoice uploaded (status=pending)") : bad("invoice status wrong");
+
+  await withTenant(tenantId, async () => {
+    await q(`UPDATE doc.documents SET status='verified' WHERE id=$1`, [inv.id]);
+  });
+  const verified = await withTenant(tenantId, async () =>
+    (await q(`SELECT status FROM doc.documents WHERE id=$1`, [inv.id])).rows[0].status,
+  );
+  verified === "verified" ? ok("invoice verified") : bad("verify failed");
+
+  const invoices = await withTenant(tenantId, async () =>
+    (await q(`SELECT count(*)::int n FROM doc.documents WHERE type='Commercial Invoice'`)).rows[0].n,
+  );
+  const customs = await withTenant(tenantId, async () =>
+    (await q(`SELECT count(*)::int n FROM doc.documents WHERE type='Customs Declaration'`)).rows[0].n,
+  );
+  invoices === 1 && customs === 1 ? ok("type filters work (1 invoice, 1 customs)") : bad(`filter mismatch inv=${invoices} cust=${customs}`);
+
+  section("PHASE 3 — delivery confirmation (POD) + doc RLS");
+  await upload("Proof of Delivery", "POD.pdf");
+  const pods = await withTenant(tenantId, async () =>
+    (await q(`SELECT count(*)::int n FROM doc.documents WHERE type='Proof of Delivery'`)).rows[0].n,
+  );
+  pods === 1 ? ok("POD recorded (delivery confirmed)") : bad("POD missing");
+
+  const docLeak = await withTenant(randomUUID(), async () =>
+    (await q(`SELECT count(*)::int n FROM doc.documents`)).rows[0].n,
+  );
+  docLeak === 0 ? ok("other tenant sees 0 documents (RLS)") : bad(`doc RLS LEAK: ${docLeak}`);
 }
 
 main().catch((e) => {
