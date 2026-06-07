@@ -1,10 +1,28 @@
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { config as loadDotenv } from "dotenv";
 import { z } from "zod";
 
 /**
  * Typed env loading & validation. Each service defines its env schema and
  * calls loadConfig(schema) at boot — fail-fast if anything required is missing.
- * Implementation lands in Phase 1; this is the stable public surface.
  */
+
+// Load the nearest `.env` walking up to the monorepo root (dev convenience).
+// In cloud envs there is no .env file; config comes from injected env vars.
+(function loadRootDotenv() {
+  let dir = process.cwd();
+  for (let i = 0; i < 6; i++) {
+    const candidate = join(dir, ".env");
+    if (existsSync(candidate)) {
+      loadDotenv({ path: candidate });
+      return;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+})();
 
 /** Base env shared by every service. */
 export const baseEnvSchema = z.object({

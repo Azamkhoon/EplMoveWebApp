@@ -2,19 +2,38 @@
   "name": "@epl/auth",
   "version": "0.0.0",
   "private": true,
-  "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
-  "exports": { ".": "./src/index.ts" },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --noEmit",
     "lint": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@epl/contracts": "workspace:*"
+    "@epl/contracts": "workspace:*",
+    "jose": "^5.6.3",
+    "reflect-metadata": "^0.2.2",
+    "zod": "^3.23.8"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^10.4.1",
+    "@nestjs/core": "^10.4.1"
   },
   "devDependencies": {
+    "@nestjs/common": "^10.4.1",
+    "@nestjs/core": "^10.4.1",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.19.42",
+    "rxjs": "^7.8.1",
     "typescript": "^5.5.4"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }

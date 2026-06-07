@@ -2,20 +2,28 @@
   "name": "@epl/config",
   "version": "0.0.0",
   "private": true,
-  "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
-  "exports": { ".": "./src/index.ts" },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --noEmit",
     "lint": "tsc -b --noEmit"
   },
   "dependencies": {
+    "dotenv": "^16.4.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^20.19.42",
     "typescript": "^5.5.4"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }

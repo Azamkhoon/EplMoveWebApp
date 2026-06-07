@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Load, LoadStatus } from "../load.js";
+import { Load, LoadStatus } from "../load";
 
 /**
  * Event envelope + catalog. Every event published to Pub/Sub conforms to

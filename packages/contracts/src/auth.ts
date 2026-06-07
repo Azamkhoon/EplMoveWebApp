@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Identity & RBAC contracts (auth-svc + tenant-svc). */
+/* Identity & RBAC contracts (auth-svc + tenant-svc). */
 
 export const Permission = z.string(); // e.g. "load:create" — open vocabulary, validated against seed set
 export type Permission = z.infer<typeof Permission>;

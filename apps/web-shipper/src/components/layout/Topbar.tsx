@@ -47,7 +47,7 @@ export function Topbar({ pathname }: { pathname: string }) {
         <Button
           size="md"
           className="hidden sm:inline-flex"
-          onClick={() => navigate("/quotation")}
+          onClick={() => navigate("/post-load")}
         >
           <Plus size={16} />
           {t("topbar.newShipment")}

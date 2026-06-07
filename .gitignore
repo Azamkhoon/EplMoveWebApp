@@ -19,6 +19,7 @@ vite.config.d.ts
 .env
 .env.*
 !.env.example
+scripts/keys/
 
 # Local Claude Code settings
 .claude/settings.local.json

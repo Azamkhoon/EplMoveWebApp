@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Dimensions, EquipmentKind, Location, Money, RoadServiceLevel, TransportMode } from "./common.js";
+import { Dimensions, EquipmentKind, Location, Money, RoadServiceLevel, TransportMode } from "./common";
 
 /**
  * Load domain contracts (owned by load-svc).

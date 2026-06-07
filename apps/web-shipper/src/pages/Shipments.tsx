@@ -96,7 +96,7 @@ export function Shipments() {
             <Download size={15} />
             <span className="hidden sm:inline">Export</span>
           </Button>
-          <Button size="md" onClick={() => navigate("/quotation")}>
+          <Button size="md" onClick={() => navigate("/post-load")}>
             <Plus size={15} />
             New Shipment
           </Button>
