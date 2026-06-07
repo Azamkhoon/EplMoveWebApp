@@ -67,6 +67,7 @@ async function bootstrap() {
   app.use("/carriers", requireAuth(), proxy(config.CARRIER_SVC_URL));
   app.use("/tracking", requireAuth(), proxy(config.TRACKING_SVC_URL));
   app.use("/documents", requireAuth(), proxy(config.DOC_SVC_URL));
+  app.use("/genius", requireAuth(), proxy(config.GENIUS_SVC_URL));
 
   // WebSocket passthrough for live tracking. The browser authenticates via a
   // ?token= query param (verified by tracking-svc), so the gateway just proxies

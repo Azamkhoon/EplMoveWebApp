@@ -245,6 +245,7 @@ async function main() {
 
   const shipmentId = await runPhase2(db, q, withTenant, tenantId, userId, loadId);
   await runPhase3(q, withTenant, tenantId, userId, shipmentId);
+  await runPhase4();
 
   // ── Summary ──
   console.log(`\n\x1b[1m${failed === 0 ? "\x1b[32mALL CHECKS PASSED" : "\x1b[31mSOME CHECKS FAILED"}\x1b[0m  (${pass} passed, ${failed} failed)`);
@@ -482,6 +483,60 @@ async function runPhase3(
     (await q(`SELECT count(*)::int n FROM doc.documents`)).rows[0].n,
   );
   docLeak === 0 ? ok("other tenant sees 0 documents (RLS)") : bad(`doc RLS LEAK: ${docLeak}`);
+}
+
+// ════════════════════════ PHASE 4 ════════════════════════
+async function runPhase4() {
+  // genius-svc is stateless — import the REAL service class and call its tools.
+  const { GeniusService } = await import("../services/genius-svc/src/modules/genius/genius.service.ts");
+  const genius = new GeniusService();
+
+  section("PHASE 4 — EPL Genius chat (KB answer)");
+  const ans = await genius.ask({ question: "What's the difference between FOB and CIF?" });
+  ans.answer.includes("FOB") && ans.sources.length > 0
+    ? ok(`chat answered with ${ans.sources.length} sources`)
+    : bad("chat KB answer missing");
+  const fallback = await genius.ask({ question: "zzz nonsense xyz" });
+  fallback.answer.length > 0 ? ok("chat fallback returns guidance") : bad("no fallback answer");
+
+  section("PHASE 4 — freight rate estimation");
+  const rate = genius.estimateRate({
+    origin: "Shanghai", destination: "Rotterdam", mode: "Ocean", weightKg: 18400, volumeM3: 58,
+  });
+  rate.lowUsd < rate.midUsd && rate.midUsd < rate.highUsd
+    ? ok(`rate range $${rate.lowUsd}–$${rate.highUsd} (mid $${rate.midUsd})`)
+    : bad("rate range not ordered");
+  rate.chargeableWeightKg >= 18400 ? ok(`chargeable weight ${rate.chargeableWeightKg} kg`) : bad("chargeable weight wrong");
+  // Air on the same cargo should cost more and be faster than Ocean.
+  const air = genius.estimateRate({ origin: "Shanghai", destination: "Rotterdam", mode: "Air", weightKg: 18400 });
+  air.midUsd > rate.midUsd && air.transitDaysHigh < rate.transitDaysHigh
+    ? ok("air pricier & faster than ocean (model sane)")
+    : bad(`model inconsistent: air $${air.midUsd}/${air.transitDaysHigh}d vs ocean $${rate.midUsd}/${rate.transitDaysHigh}d`);
+
+  section("PHASE 4 — route optimization (priorities)");
+  const cheapest = genius.optimizeRoute({ origin: "A", destination: "B", priority: "cost", weightKg: 10000 });
+  const fastest = genius.optimizeRoute({ origin: "A", destination: "B", priority: "speed", weightKg: 10000 });
+  const greenest = genius.optimizeRoute({ origin: "A", destination: "B", priority: "green", weightKg: 10000 });
+  const recCost = cheapest.options.find((o) => o.recommended)!;
+  const recSpeed = fastest.options.find((o) => o.recommended)!;
+  const recGreen = greenest.options.find((o) => o.recommended)!;
+  recCost.estCostUsd === Math.min(...cheapest.options.map((o) => o.estCostUsd))
+    ? ok(`cost priority → ${recCost.mode} (cheapest)`)
+    : bad("cost priority did not pick cheapest");
+  recSpeed.transitDays === Math.min(...fastest.options.map((o) => o.transitDays))
+    ? ok(`speed priority → ${recSpeed.mode} (fastest)`)
+    : bad("speed priority did not pick fastest");
+  recGreen.co2Kg === Math.min(...greenest.options.map((o) => o.co2Kg))
+    ? ok(`green priority → ${recGreen.mode} (lowest CO₂)`)
+    : bad("green priority did not pick greenest");
+
+  section("PHASE 4 — documentation & customs assistance");
+  const customs = genius.docAssist({ topic: "customs", commodity: "machinery", origin: "CN", destination: "NL" });
+  customs.checklist.some((c) => c.toLowerCase().includes("hs code"))
+    ? ok(`customs checklist (${customs.checklist.length} items, incl. HS code)`)
+    : bad("customs checklist missing HS code");
+  const docs = genius.docAssist({ topic: "documentation" });
+  docs.checklist.length >= 5 ? ok(`documentation checklist (${docs.checklist.length} items)`) : bad("doc checklist too short");
 }
 
 main().catch((e) => {

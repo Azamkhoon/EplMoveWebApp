@@ -9,6 +9,7 @@ import {
   FolderArchive,
   Navigation,
   Settings,
+  Sparkles,
   Store,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ const NAV = [
   { to: "/tracking", labelKey: "nav.tracking", icon: Navigation },
   { to: "/quotation", labelKey: "nav.quotation", icon: FileText },
   { to: "/load-calculator", labelKey: "nav.loadCalculator", icon: Calculator },
+  { to: "/rate-estimator", labelKey: "nav.rateEstimator", icon: Sparkles },
 ];
 
 export function Sidebar({

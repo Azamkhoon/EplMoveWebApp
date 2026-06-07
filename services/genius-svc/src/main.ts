@@ -1,16 +1,20 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
+import { HttpErrorFilter } from "@epl/auth";
 import { createLogger } from "@epl/observability";
+import { config } from "./config";
 
-const SERVICE_NAME = "genius-svc";
-const logger = createLogger(SERVICE_NAME);
+const logger = createLogger(config.SERVICE_NAME);
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { logger: false });
-  const port = Number(process.env.PORT ?? 8080);
-  await app.listen(port);
-  logger.info({ port }, `${SERVICE_NAME} listening`);
+  app.useGlobalFilters(new HttpErrorFilter());
+  await app.listen(config.PORT);
+  logger.info(
+    { port: config.PORT, llm: config.GENIUS_LLM_URL ? "configured" : "kb-only" },
+    `${config.SERVICE_NAME} listening`,
+  );
 }
 
 bootstrap().catch((err) => {

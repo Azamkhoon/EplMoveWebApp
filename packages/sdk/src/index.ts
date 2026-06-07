@@ -14,6 +14,14 @@ import type {
   TrackingState,
   UpdateLoadInput,
   UploadDocumentInput,
+  GeniusAnswer,
+  AskInput,
+  RateEstimate,
+  RateEstimateInput,
+  RouteOptimizeInput,
+  RouteOptimizeResult,
+  DocAssistInput,
+  DocAssistResult,
 } from "@epl/contracts";
 
 /**
@@ -278,6 +286,23 @@ export class EplClient {
   documentDownloadUrl(id: string): string {
     return `${this.baseUrl}/documents/${id}/download`;
   }
+
+  // ── EPL Genius ──
+  askGenius(input: AskInput): Promise<GeniusAnswer> {
+    return this.request<GeniusAnswer>("/genius/ask", { method: "POST", body: JSON.stringify(input) });
+  }
+
+  estimateRate(input: RateEstimateInput): Promise<RateEstimate> {
+    return this.request<RateEstimate>("/genius/rate-estimate", { method: "POST", body: JSON.stringify(input) });
+  }
+
+  optimizeRoute(input: RouteOptimizeInput): Promise<RouteOptimizeResult> {
+    return this.request<RouteOptimizeResult>("/genius/route-optimize", { method: "POST", body: JSON.stringify(input) });
+  }
+
+  docAssist(input: DocAssistInput): Promise<DocAssistResult> {
+    return this.request<DocAssistResult>("/genius/doc-assist", { method: "POST", body: JSON.stringify(input) });
+  }
 }
 
 export type {
@@ -294,4 +319,8 @@ export type {
   ShipmentDocument,
   UploadDocumentInput,
   DocumentType,
+  GeniusAnswer,
+  RateEstimate,
+  RouteOptimizeResult,
+  DocAssistResult,
 } from "@epl/contracts";

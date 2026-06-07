@@ -116,18 +116,45 @@ function localAnswer(question: string): GeniusAnswer {
   return { answer: best.entry.answer, sources: best.entry.sources };
 }
 
-const API_URL = import.meta.env.VITE_GENIUS_API_URL as string | undefined;
+const GENIUS_API_URL = import.meta.env.VITE_GENIUS_API_URL as string | undefined;
+const API_URL = import.meta.env.VITE_API_URL as string | undefined;
+
+/** Returns the genius-svc endpoint via the gateway when running live. */
+function gatewayGeniusUrl(): string | undefined {
+  return API_URL ? `${API_URL.replace(/\/$/, "")}/genius/ask` : undefined;
+}
 
 /**
  * Ask EPL Genius a logistics question.
- * Uses a live API endpoint when VITE_GENIUS_API_URL is configured; otherwise
- * answers from the built-in knowledge base. The simulated latency mimics a
- * web-search round trip so the UI behaves the same either way.
+ * Resolution order:
+ *  1. The platform gateway (/genius/ask) when VITE_API_URL is set — sends the
+ *     access token so the request is authenticated.
+ *  2. A standalone VITE_GENIUS_API_URL endpoint, if configured.
+ *  3. The built-in offline knowledge base.
+ * The UI behaves identically regardless of which path serves the answer.
  */
 export async function askGenius(question: string): Promise<GeniusAnswer> {
-  if (API_URL) {
+  const gatewayUrl = gatewayGeniusUrl();
+  if (gatewayUrl) {
     try {
-      const res = await fetch(API_URL, {
+      const token = sessionStorage.getItem("epl-access");
+      const res = await fetch(gatewayUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({ question }),
+      });
+      if (res.ok) return (await res.json()) as GeniusAnswer;
+    } catch {
+      /* fall through */
+    }
+  }
+  if (GENIUS_API_URL) {
+    try {
+      const res = await fetch(GENIUS_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),

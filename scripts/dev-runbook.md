@@ -47,8 +47,14 @@ pnpm --filter @epl/quote-svc    dev   # :8085
 pnpm --filter @epl/shipment-svc dev   # :8086  (subscribes to bid.accepted)
 pnpm --filter @epl/tracking-svc dev   # :8087  (subscribes to shipment.created; WS /ws/tracking)
 pnpm --filter @epl/doc-svc      dev   # :8088  (local file storage by default)
+pnpm --filter @epl/genius-svc   dev   # :8089  (KB by default; set GENIUS_LLM_URL for live LLM/web search)
 pnpm --filter @epl/api-gateway  dev   # :8080  (public ingress; proxies WS)
 ```
+genius-svc is stateless (no migration). To use a real LLM/web-search provider,
+set `GENIUS_LLM_URL` (and optionally `GENIUS_LLM_API_KEY`); otherwise it answers
+from the built-in KB and computes rate/route tools deterministically. The SPA's
+EPL Genius widget auto-targets the gateway's `/genius/ask` when `VITE_API_URL`
+is set (authenticated), falling back to `VITE_GENIUS_API_URL`, then offline KB.
 
 ## 5. Verify end-to-end
 ```bash

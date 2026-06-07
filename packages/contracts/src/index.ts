@@ -6,4 +6,5 @@ export * from "./quote";
 export * from "./shipment";
 export * from "./tracking";
 export * from "./document";
+export * from "./genius";
 export * as Events from "./events/index";
