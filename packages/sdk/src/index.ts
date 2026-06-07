@@ -9,8 +9,11 @@ import type {
   Quote,
   RegisterInput,
   Shipment,
+  ShipmentDocument,
   SubmitBidInput,
+  TrackingState,
   UpdateLoadInput,
+  UploadDocumentInput,
 } from "@epl/contracts";
 
 /**
@@ -211,6 +214,70 @@ export class EplClient {
       body: JSON.stringify({ stars, comment }),
     });
   }
+
+  // ── Tracking ──
+  getTrackingState(shipmentId: string): Promise<TrackingState> {
+    return this.request<TrackingState>(`/tracking/${shipmentId}`);
+  }
+
+  getTrackingHistory(shipmentId: string): Promise<
+    { lat: number; lng: number; reportedAt: string }[]
+  > {
+    return this.request(`/tracking/${shipmentId}/history`);
+  }
+
+  reportPosition(
+    shipmentId: string,
+    pos: { lat: number; lng: number; speedKph?: number; headingDeg?: number },
+  ): Promise<TrackingState> {
+    return this.request<TrackingState>(`/tracking/${shipmentId}/positions`, {
+      method: "POST",
+      body: JSON.stringify(pos),
+    });
+  }
+
+  /** Open a live position WebSocket. Returns a closer; pushes TrackingState. */
+  openTrackingStream(onState: (s: TrackingState) => void): () => void {
+    const base = this.baseUrl.replace(/^http/, "ws");
+    const ws = new WebSocket(`${base}/ws/tracking?token=${encodeURIComponent(this.accessToken ?? "")}`);
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data as string);
+        if (msg.type === "position") onState(msg.state as TrackingState);
+      } catch {
+        /* ignore malformed frames */
+      }
+    };
+    return () => ws.close();
+  }
+
+  // ── Documents ──
+  listDocuments(params?: { shipmentId?: string; type?: string }): Promise<ShipmentDocument[]> {
+    const qs = new URLSearchParams();
+    if (params?.shipmentId) qs.set("shipmentId", params.shipmentId);
+    if (params?.type) qs.set("type", params.type);
+    const suffix = qs.toString() ? `?${qs}` : "";
+    return this.request<ShipmentDocument[]>(`/documents${suffix}`);
+  }
+
+  uploadDocument(input: UploadDocumentInput): Promise<ShipmentDocument> {
+    return this.request<ShipmentDocument>("/documents", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  verifyDocument(id: string): Promise<ShipmentDocument> {
+    return this.request<ShipmentDocument>(`/documents/${id}/verify`, { method: "POST" });
+  }
+
+  confirmDelivery(shipmentId: string): Promise<ShipmentDocument> {
+    return this.request<ShipmentDocument>(`/documents/shipments/${shipmentId}/pod`, { method: "POST" });
+  }
+
+  documentDownloadUrl(id: string): string {
+    return `${this.baseUrl}/documents/${id}/download`;
+  }
 }
 
 export type {
@@ -223,4 +290,8 @@ export type {
   CreateQuoteInput,
   Shipment,
   Carrier,
+  TrackingState,
+  ShipmentDocument,
+  UploadDocumentInput,
+  DocumentType,
 } from "@epl/contracts";

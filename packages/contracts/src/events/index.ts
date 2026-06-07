@@ -2,6 +2,8 @@ import { z } from "zod";
 import { Load, LoadStatus } from "../load";
 import { Bid } from "../quote";
 import { Shipment } from "../shipment";
+import { TrackingState } from "../tracking";
+import { ShipmentDocument } from "../document";
 
 /**
  * Event envelope + catalog. Every event published to Pub/Sub conforms to
@@ -66,6 +68,19 @@ export const ShipmentEventType = {
   Delivered: "shipment.delivered",
 } as const;
 
+// ── Tracking event types ──
+export const TrackingEventType = {
+  PositionUpdated: "position.updated",
+  EtaRecalculated: "eta.recalculated",
+  GeofenceEntered: "geofence.entered",
+} as const;
+
+// ── Document event types ──
+export const DocEventType = {
+  Uploaded: "doc.uploaded",
+  Verified: "doc.verified",
+} as const;
+
 // ── Payload schemas (load domain) ──
 export const LoadPostedPayload = z.object({ load: Load });
 export type LoadPostedPayload = z.infer<typeof LoadPostedPayload>;
@@ -89,3 +104,16 @@ export type BidAcceptedPayload = z.infer<typeof BidAcceptedPayload>;
 
 export const ShipmentCreatedPayload = z.object({ shipment: Shipment });
 export type ShipmentCreatedPayload = z.infer<typeof ShipmentCreatedPayload>;
+
+// ── Payload schemas (tracking/doc domain) ──
+export const PositionUpdatedPayload = z.object({ state: TrackingState });
+export type PositionUpdatedPayload = z.infer<typeof PositionUpdatedPayload>;
+
+export const GeofenceEnteredPayload = z.object({
+  shipmentId: z.string().uuid(),
+  kind: z.enum(["origin", "destination"]),
+});
+export type GeofenceEnteredPayload = z.infer<typeof GeofenceEnteredPayload>;
+
+export const DocUploadedPayload = z.object({ document: ShipmentDocument });
+export type DocUploadedPayload = z.infer<typeof DocUploadedPayload>;

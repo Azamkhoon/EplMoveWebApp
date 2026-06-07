@@ -11,6 +11,8 @@ const schema = baseEnvSchema.extend({
   CARRIER_SVC_URL: z.string().default("http://localhost:8084"),
   QUOTE_SVC_URL: z.string().default("http://localhost:8085"),
   SHIPMENT_SVC_URL: z.string().default("http://localhost:8086"),
+  TRACKING_SVC_URL: z.string().default("http://localhost:8087"),
+  DOC_SVC_URL: z.string().default("http://localhost:8088"),
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60000),
   RATE_LIMIT_MAX: z.coerce.number().default(120),

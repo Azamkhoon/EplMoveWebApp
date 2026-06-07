@@ -24,5 +24,9 @@ scripts/keys/
 # Local Claude Code settings
 .claude/settings.local.json
 
+# Local doc-svc storage (dev)
+.docstore
+**/.docstore
+
 # OS
 .DS_Store

@@ -65,14 +65,29 @@ async function bootstrap() {
   app.use("/quotes", requireAuth(), proxy(config.QUOTE_SVC_URL));
   app.use("/shipments", requireAuth(), proxy(config.SHIPMENT_SVC_URL));
   app.use("/carriers", requireAuth(), proxy(config.CARRIER_SVC_URL));
+  app.use("/tracking", requireAuth(), proxy(config.TRACKING_SVC_URL));
+  app.use("/documents", requireAuth(), proxy(config.DOC_SVC_URL));
+
+  // WebSocket passthrough for live tracking. The browser authenticates via a
+  // ?token= query param (verified by tracking-svc), so the gateway just proxies
+  // the upgrade; identity headers aren't used on the WS hop.
+  const wsProxy = createProxyMiddleware({
+    target: config.TRACKING_SVC_URL,
+    changeOrigin: true,
+    ws: true,
+    pathFilter: "/ws/tracking",
+  });
+  app.use(wsProxy);
 
   app.use((_req, res) =>
     res.status(404).json({ error: { code: "NOT_FOUND", message: "no route" } }),
   );
 
-  app.listen(config.PORT, () =>
+  const server = app.listen(config.PORT, () =>
     logger.info({ port: config.PORT }, `${config.SERVICE_NAME} listening`),
   );
+  // Forward WebSocket upgrades to tracking-svc.
+  server.on("upgrade", wsProxy.upgrade);
 }
 
 bootstrap().catch((err) => {
