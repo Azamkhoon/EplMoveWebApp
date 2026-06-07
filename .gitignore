@@ -1,14 +1,27 @@
+# Dependencies
 node_modules
+.pnpm-store
 
 # Build output
 dist
-
-# TypeScript incremental build cache
+build
+.next
 *.tsbuildinfo
 
-# Generated from vite.config.ts
+# Turbo
+.turbo
+
+# Vite (generated configs)
 vite.config.js
 vite.config.d.ts
 
+# Env / secrets
+.env
+.env.*
+!.env.example
+
 # Local Claude Code settings
 .claude/settings.local.json
+
+# OS
+.DS_Store
