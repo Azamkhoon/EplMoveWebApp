@@ -14,6 +14,8 @@ const schema = baseEnvSchema.extend({
   TRACKING_SVC_URL: z.string().default("http://localhost:8087"),
   DOC_SVC_URL: z.string().default("http://localhost:8088"),
   GENIUS_SVC_URL: z.string().default("http://localhost:8089"),
+  BILLING_SVC_URL: z.string().default("http://localhost:8090"),
+  NOTIFY_SVC_URL: z.string().default("http://localhost:8091"),
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60000),
   RATE_LIMIT_MAX: z.coerce.number().default(120),

@@ -24,6 +24,9 @@ export const PERMISSIONS = [
   "tenant:members",
   // billing
   "billing:read",
+  "billing:pay",
+  // notifications
+  "notify:read",
 ] as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[number];
@@ -41,6 +44,8 @@ const SHIPPER_FULL: PermissionKey[] = [
   "doc:upload",
   "doc:read",
   "billing:read",
+  "billing:pay",
+  "notify:read",
 ];
 
 export const SYSTEM_ROLES: { key: string; name: string; perms: PermissionKey[] }[] = [
@@ -53,7 +58,7 @@ export const SYSTEM_ROLES: { key: string; name: string; perms: PermissionKey[] }
   {
     key: "shipper_viewer",
     name: "Shipper Viewer",
-    perms: ["load:read", "quote:read", "shipment:read", "doc:read", "billing:read"],
+    perms: ["load:read", "quote:read", "shipment:read", "doc:read", "billing:read", "notify:read"],
   },
 ];
 

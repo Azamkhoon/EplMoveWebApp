@@ -348,15 +348,24 @@ importers:
 
   services/billing-svc:
     dependencies:
+      '@epl/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@epl/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@epl/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@epl/events':
+        specifier: workspace:*
+        version: link:../../packages/events
       '@epl/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@google-cloud/pubsub':
+        specifier: ^4.7.0
+        version: 4.11.0
       '@nestjs/common':
         specifier: ^10.4.1
         version: 10.4.22(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -366,19 +375,34 @@ importers:
       '@nestjs/platform-express':
         specifier: ^10.4.1
         version: 10.4.22(@nestjs/common@10.4.22(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)
+      express:
+        specifier: ^4.21.0
+        version: 4.22.1
+      pg:
+        specifier: ^8.12.0
+        version: 8.21.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
       rxjs:
         specifier: ^7.8.1
         version: 7.8.2
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
     devDependencies:
       '@nestjs/cli':
         specifier: ^10.4.4
         version: 10.4.9
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
       '@types/node':
         specifier: ^20.19.42
         version: 20.19.42
+      '@types/pg':
+        specifier: ^8.11.6
+        version: 8.20.0
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
@@ -617,15 +641,24 @@ importers:
 
   services/notify-svc:
     dependencies:
+      '@epl/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@epl/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@epl/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@epl/events':
+        specifier: workspace:*
+        version: link:../../packages/events
       '@epl/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@google-cloud/pubsub':
+        specifier: ^4.7.0
+        version: 4.11.0
       '@nestjs/common':
         specifier: ^10.4.1
         version: 10.4.22(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -635,19 +668,34 @@ importers:
       '@nestjs/platform-express':
         specifier: ^10.4.1
         version: 10.4.22(@nestjs/common@10.4.22(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)
+      express:
+        specifier: ^4.21.0
+        version: 4.22.1
+      pg:
+        specifier: ^8.12.0
+        version: 8.21.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
       rxjs:
         specifier: ^7.8.1
         version: 7.8.2
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
     devDependencies:
       '@nestjs/cli':
         specifier: ^10.4.4
         version: 10.4.9
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
       '@types/node':
         specifier: ^20.19.42
         version: 20.19.42
+      '@types/pg':
+        specifier: ^8.11.6
+        version: 8.20.0
       typescript:
         specifier: ^5.5.4
         version: 5.9.3

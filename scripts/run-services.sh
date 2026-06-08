@@ -10,7 +10,7 @@ ROOT="$(pwd)"
 # Each service loads .env itself via @epl/config (dotenv walks up to repo root).
 
 # "svc:port" pairs, started in dependency order.
-SERVICES="tenant-svc:8082 auth-svc:8081 load-svc:8083 carrier-svc:8084 quote-svc:8085 shipment-svc:8086 tracking-svc:8087 doc-svc:8088 genius-svc:8089 api-gateway:8080"
+SERVICES="tenant-svc:8082 auth-svc:8081 load-svc:8083 carrier-svc:8084 quote-svc:8085 shipment-svc:8086 tracking-svc:8087 doc-svc:8088 genius-svc:8089 billing-svc:8090 notify-svc:8091 api-gateway:8080"
 
 : > /tmp/epl-pids
 for pair in $SERVICES; do

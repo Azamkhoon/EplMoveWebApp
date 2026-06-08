@@ -7,4 +7,6 @@ export * from "./shipment";
 export * from "./tracking";
 export * from "./document";
 export * from "./genius";
+export * from "./billing";
+export * from "./notification";
 export * as Events from "./events/index";

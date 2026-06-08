@@ -4,6 +4,7 @@ import { Bid } from "../quote";
 import { Shipment } from "../shipment";
 import { TrackingState } from "../tracking";
 import { ShipmentDocument } from "../document";
+import { Invoice } from "../billing";
 
 /**
  * Event envelope + catalog. Every event published to Pub/Sub conforms to
@@ -81,6 +82,12 @@ export const DocEventType = {
   Verified: "doc.verified",
 } as const;
 
+// ── Billing event types ──
+export const BillingEventType = {
+  InvoiceIssued: "invoice.issued",
+  InvoicePaid: "invoice.paid",
+} as const;
+
 // ── Payload schemas (load domain) ──
 export const LoadPostedPayload = z.object({ load: Load });
 export type LoadPostedPayload = z.infer<typeof LoadPostedPayload>;
@@ -117,3 +124,7 @@ export type GeofenceEnteredPayload = z.infer<typeof GeofenceEnteredPayload>;
 
 export const DocUploadedPayload = z.object({ document: ShipmentDocument });
 export type DocUploadedPayload = z.infer<typeof DocUploadedPayload>;
+
+// ── Payload schemas (billing domain) ──
+export const InvoiceIssuedPayload = z.object({ invoice: Invoice });
+export type InvoiceIssuedPayload = z.infer<typeof InvoiceIssuedPayload>;

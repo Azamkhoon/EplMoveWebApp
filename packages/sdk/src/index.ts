@@ -22,6 +22,8 @@ import type {
   RouteOptimizeResult,
   DocAssistInput,
   DocAssistResult,
+  Invoice,
+  Notification,
 } from "@epl/contracts";
 
 /**
@@ -303,6 +305,31 @@ export class EplClient {
   docAssist(input: DocAssistInput): Promise<DocAssistResult> {
     return this.request<DocAssistResult>("/genius/doc-assist", { method: "POST", body: JSON.stringify(input) });
   }
+
+  // ── Billing ──
+  listInvoices(): Promise<Invoice[]> {
+    return this.request<Invoice[]>("/invoices");
+  }
+
+  getInvoice(id: string): Promise<Invoice> {
+    return this.request<Invoice>(`/invoices/${id}`);
+  }
+
+  payInvoice(id: string): Promise<Invoice> {
+    return this.request<Invoice>(`/invoices/${id}/pay`, { method: "POST" });
+  }
+
+  // ── Notifications ──
+  listNotifications(): Promise<Notification[]> {
+    return this.request<Notification[]>("/notifications");
+  }
+
+  markNotificationsRead(ids?: string[]): Promise<{ updated: number }> {
+    return this.request<{ updated: number }>("/notifications/read", {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    });
+  }
 }
 
 export type {
@@ -323,4 +350,6 @@ export type {
   RateEstimate,
   RouteOptimizeResult,
   DocAssistResult,
+  Invoice,
+  Notification,
 } from "@epl/contracts";
