@@ -17,7 +17,9 @@
     "dev:backend": "turbo run dev --filter='./services/*'",
     "infra:up": "docker compose -f infra/docker/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker/docker-compose.yml down",
-    "verify:inproc": "node --import tsx scripts/verify-inproc.ts"
+    "db:grant": "docker exec -i epl-postgres psql -U epl -d epl_move < infra/docker/initdb/02-app-role.sql",
+    "verify:inproc": "node --import tsx scripts/verify-inproc.ts",
+    "verify:live": "bash scripts/verify-phase1.sh && bash scripts/verify-phase2.sh"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.2.12",

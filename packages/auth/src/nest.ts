@@ -8,6 +8,7 @@ import {
   createParamDecorator,
   type CallHandler,
   type NestInterceptor,
+  type NestMiddleware,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import type { Observable } from "rxjs";
@@ -29,38 +30,56 @@ export const RequirePermissions = (...perms: Permission[]) =>
 /** Inject the current RequestContext into a handler: `@Ctx() ctx: RequestContext`. */
 export const Ctx = createParamDecorator((_data, _exec: ExecutionContext) => requireContext());
 
+/** Builds a RequestContext from gateway-forwarded identity headers, or null. */
+function contextFromHeaders(headers: Record<string, unknown>): RequestContext | null {
+  const userId = headers["x-epl-user"];
+  const tenantId = headers["x-epl-tenant"];
+  if (!userId || !tenantId) return null;
+  const role = headers["x-epl-role"];
+  const permsRaw = headers["x-epl-perms"];
+  const sessionId = headers["x-epl-session"] ?? "";
+  const correlationId =
+    headers["x-correlation-id"] ?? headers["x-request-id"] ?? crypto.randomUUID();
+  return {
+    userId: String(userId),
+    tenantId: String(tenantId),
+    role: String(role ?? ""),
+    perms: permsRaw ? String(permsRaw).split(",").filter(Boolean) : [],
+    sessionId: String(sessionId),
+    correlationId: String(correlationId),
+  };
+}
+
 /**
  * Establishes the RequestContext from gateway-forwarded identity headers and
- * runs the rest of the request inside the AsyncLocalStorage scope.
+ * runs the REST of the request inside the AsyncLocalStorage scope.
  *
- * The gateway verifies the JWT and forwards identity as trusted internal
- * headers (services have no public ingress). See docs/architecture/04-security.md.
+ * This is middleware (not an interceptor) on purpose: NestJS runs middleware
+ * before guards, so PermissionsGuard sees the context. The gateway verifies the
+ * JWT and forwards identity as trusted internal headers (services have no public
+ * ingress). See docs/architecture/04-security.md.
+ */
+@Injectable()
+export class ContextMiddleware implements NestMiddleware {
+  use(req: { headers: Record<string, unknown> }, _res: unknown, next: () => void): void {
+    const ctx = contextFromHeaders(req.headers);
+    // Public routes (health) won't have identity headers — let them through.
+    if (!ctx) return next();
+    runWithContext(ctx, () => next());
+  }
+}
+
+/**
+ * @deprecated Use ContextMiddleware. Kept so existing @UseInterceptors() wiring
+ * keeps compiling; as an interceptor it runs AFTER guards, so it cannot satisfy
+ * PermissionsGuard on its own.
  */
 @Injectable()
 export class ContextInterceptor implements NestInterceptor {
   intercept(exec: ExecutionContext, next: CallHandler): Observable<unknown> {
     const req = exec.switchToHttp().getRequest();
-    const userId = req.headers["x-epl-user"];
-    const tenantId = req.headers["x-epl-tenant"];
-    const role = req.headers["x-epl-role"];
-    const permsRaw = req.headers["x-epl-perms"];
-    const sessionId = req.headers["x-epl-session"] ?? "";
-    const correlationId =
-      req.headers["x-correlation-id"] ?? req.headers["x-request-id"] ?? crypto.randomUUID();
-
-    if (!userId || !tenantId) {
-      // Public routes (health) won't have a context; let them through.
-      return next.handle();
-    }
-
-    const ctx: RequestContext = {
-      userId: String(userId),
-      tenantId: String(tenantId),
-      role: String(role ?? ""),
-      perms: permsRaw ? String(permsRaw).split(",").filter(Boolean) : [],
-      sessionId: String(sessionId),
-      correlationId: String(correlationId),
-    };
+    const ctx = contextFromHeaders(req.headers);
+    if (!ctx) return next.handle();
     return runWithContext(ctx, () => next.handle());
   }
 }

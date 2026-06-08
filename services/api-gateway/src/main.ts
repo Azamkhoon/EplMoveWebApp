@@ -46,6 +46,14 @@ async function bootstrap() {
       target,
       changeOrigin: true,
       xfwd: true,
+      // Express's app.use("/prefix", …) strips the mount path before the
+      // middleware runs, so req.url arrives without it. Re-prepend req.baseUrl
+      // so the upstream service receives the full original path (e.g. the
+      // gateway's /auth/register reaches auth-svc as /auth/register, not /register).
+      pathRewrite: (path, req) => {
+        const base = (req as express.Request).baseUrl || "";
+        return base + path;
+      },
       on: {
         proxyReq: (proxyReq, req) => {
           const r = req as express.Request;

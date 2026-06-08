@@ -42,6 +42,18 @@ CREATE TABLE IF NOT EXISTS shipment.processed_events (
   processed_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- Transactional outbox: shipment.created is enqueued in the same tx that
+-- inserts the shipment, then relayed to Pub/Sub. See docs/architecture/05-events.md.
+CREATE TABLE IF NOT EXISTS shipment.outbox (
+  id            uuid PRIMARY KEY,
+  topic         text NOT NULL,
+  ordering_key  text,
+  event         jsonb NOT NULL,
+  published_at  timestamptz,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS outbox_unpublished_idx ON shipment.outbox (created_at) WHERE published_at IS NULL;
+
 ALTER TABLE shipment.shipments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shipment.shipments FORCE ROW LEVEL SECURITY;
 ALTER TABLE shipment.milestones ENABLE ROW LEVEL SECURITY;
