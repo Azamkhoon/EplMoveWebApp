@@ -5,9 +5,9 @@ import {
   ChevronLeft,
   FileText,
   LayoutDashboard,
-  LifeBuoy,
   FolderArchive,
   Navigation,
+  Receipt,
   Settings,
   Sparkles,
   Store,
@@ -15,7 +15,6 @@ import {
 import { cn } from "@/lib/utils";
 import { STATUS_COUNTS } from "@/data/shipments";
 import { useI18n } from "@/i18n/LanguageContext";
-import { useGenius } from "@/components/genius/GeniusContext";
 
 const NAV = [
   { to: "/", labelKey: "nav.dashboard", icon: LayoutDashboard, end: true },
@@ -28,8 +27,9 @@ const NAV = [
   },
   { to: "/marketplace", labelKey: "nav.marketplace", icon: Store },
   { to: "/live-tracking", labelKey: "nav.liveTracking", icon: Navigation },
-  { to: "/documents", labelKey: "nav.documents", icon: FolderArchive },
   { to: "/tracking", labelKey: "nav.tracking", icon: Navigation },
+  { to: "/documents", labelKey: "nav.documents", icon: FolderArchive },
+  { to: "/invoices", labelKey: "nav.invoices", icon: Receipt },
   { to: "/quotation", labelKey: "nav.quotation", icon: FileText },
   { to: "/load-calculator", labelKey: "nav.loadCalculator", icon: Calculator },
   { to: "/rate-estimator", labelKey: "nav.rateEstimator", icon: Sparkles },
@@ -43,33 +43,40 @@ export function Sidebar({
   onToggle: () => void;
 }) {
   const { t } = useI18n();
-  const { open: openGenius } = useGenius();
+
+  const itemClass = (isActive: boolean) =>
+    cn(
+      "group relative flex items-center gap-3 rounded-lg px-3 nav-pad-y text-sm font-medium transition-all",
+      isActive
+        ? "bg-brand-50 text-brand-700"
+        : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
+      collapsed && "justify-center",
+    );
+
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-30 flex flex-col border-r border-navy-800/60 bg-navy-900 text-slate-300 transition-all duration-300",
-        collapsed ? "w-[76px]" : "w-64"
+        "fixed inset-y-0 left-0 z-30 flex flex-col border-r border-slate-200 bg-white transition-all duration-300",
+        collapsed ? "w-[72px]" : "w-64",
       )}
     >
       {/* Brand */}
-      <div className="flex h-16 items-center gap-3 border-b border-navy-800/60 px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 shadow-lg shadow-brand-600/30">
+      <div className="flex h-16 items-center gap-3 border-b border-slate-100 px-4">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 shadow-sm shadow-brand-600/30">
           <Navigation size={18} className="text-white" />
         </div>
         {!collapsed && (
           <div className="min-w-0 leading-tight">
-            <p className="truncate text-sm font-bold text-white">EPL Move</p>
-            <p className="truncate text-[11px] text-slate-400">
-              {t("brand.portal")}
-            </p>
+            <p className="truncate text-sm font-bold text-slate-900">EPL Move</p>
+            <p className="truncate text-[11px] text-slate-400">{t("brand.portal")}</p>
           </div>
         )}
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4 scrollbar-thin">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4 scrollbar-thin">
         {!collapsed && (
-          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
             {t("nav.operations")}
           </p>
         )}
@@ -78,61 +85,47 @@ export function Sidebar({
             key={to}
             to={to}
             end={end}
-            className={({ isActive }) =>
-              cn(
-                "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-brand-600 text-white shadow-sm shadow-brand-600/30"
-                  : "text-slate-300 hover:bg-navy-800 hover:text-white",
-                collapsed && "justify-center"
-              )
-            }
+            className={({ isActive }) => itemClass(isActive)}
             title={collapsed ? t(labelKey) : undefined}
           >
-            <Icon size={18} className="shrink-0" />
-            {!collapsed && <span className="flex-1 truncate">{t(labelKey)}</span>}
-            {!collapsed && badge && (
-              <span className="rounded-full bg-amber-500/90 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                {badge}
-              </span>
+            {({ isActive }) => (
+              <>
+                {isActive && !collapsed && (
+                  <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-brand-600" />
+                )}
+                <Icon size={18} className="shrink-0" />
+                {!collapsed && <span className="flex-1 truncate">{t(labelKey)}</span>}
+                {!collapsed && badge && (
+                  <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+                    {badge}
+                  </span>
+                )}
+              </>
             )}
           </NavLink>
         ))}
       </nav>
 
       {/* Footer */}
-      <div className="space-y-1 border-t border-navy-800/60 px-3 py-3">
-        <button
-          onClick={openGenius}
-          className={cn(
-            "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-navy-800 hover:text-white",
-            collapsed && "justify-center"
-          )}
-          title={t("nav.support")}
+      <div className="space-y-0.5 border-t border-slate-100 px-3 py-3">
+        <NavLink
+          to="/settings"
+          className={({ isActive }) => itemClass(isActive)}
+          title={collapsed ? t("nav.settings") : undefined}
         >
-          <LifeBuoy size={18} />
-          {!collapsed && <span>{t("nav.support")}</span>}
-        </button>
-        <button
-          className={cn(
-            "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-navy-800 hover:text-white",
-            collapsed && "justify-center"
-          )}
-          title={t("nav.settings")}
-        >
-          <Settings size={18} />
+          <Settings size={18} className="shrink-0" />
           {!collapsed && <span>{t("nav.settings")}</span>}
-        </button>
+        </NavLink>
         <button
           onClick={onToggle}
           className={cn(
-            "mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-navy-800 hover:text-white",
-            collapsed && "justify-center"
+            "flex w-full items-center gap-3 rounded-lg px-3 nav-pad-y text-sm font-medium text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-700",
+            collapsed && "justify-center",
           )}
         >
           <ChevronLeft
             size={18}
-            className={cn("transition-transform", collapsed && "rotate-180")}
+            className={cn("shrink-0 transition-transform", collapsed && "rotate-180")}
           />
           {!collapsed && <span>{t("nav.collapse")}</span>}
         </button>

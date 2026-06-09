@@ -18,18 +18,30 @@ export default {
           900: "#0b1a2e",
           950: "#06101d",
         },
-        // Accent blue
+        // Accent — backed by CSS variables so Settings → Appearance can retint
+        // the whole app at runtime. `brand` aliases the same scale so existing
+        // brand-* usages follow the chosen accent automatically.
         brand: {
-          50: "#eff5ff",
-          100: "#dbe8fe",
-          200: "#bfd6fe",
-          300: "#93bbfd",
-          400: "#609afa",
-          500: "#3b82f6",
-          600: "#1d4ed8",
-          700: "#1e40af",
-          800: "#1e3a8a",
-          900: "#1e3a8a",
+          50: "rgb(var(--accent-50) / <alpha-value>)",
+          100: "rgb(var(--accent-100) / <alpha-value>)",
+          200: "rgb(var(--accent-200) / <alpha-value>)",
+          300: "rgb(var(--accent-300) / <alpha-value>)",
+          400: "rgb(var(--accent-400) / <alpha-value>)",
+          500: "rgb(var(--accent-500) / <alpha-value>)",
+          600: "rgb(var(--accent-600) / <alpha-value>)",
+          700: "rgb(var(--accent-700) / <alpha-value>)",
+          800: "rgb(var(--accent-700) / <alpha-value>)",
+          900: "rgb(var(--accent-700) / <alpha-value>)",
+        },
+        accent: {
+          50: "rgb(var(--accent-50) / <alpha-value>)",
+          100: "rgb(var(--accent-100) / <alpha-value>)",
+          200: "rgb(var(--accent-200) / <alpha-value>)",
+          300: "rgb(var(--accent-300) / <alpha-value>)",
+          400: "rgb(var(--accent-400) / <alpha-value>)",
+          500: "rgb(var(--accent-500) / <alpha-value>)",
+          600: "rgb(var(--accent-600) / <alpha-value>)",
+          700: "rgb(var(--accent-700) / <alpha-value>)",
         },
         // Semantic status palette
         status: {

@@ -1,17 +1,24 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Check, Globe, Plus, Search } from "lucide-react";
+import { Bell, Check, Globe, LogOut, Plus, Search, Settings as SettingsIcon } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { useI18n } from "@/i18n/LanguageContext";
+import { useAuth } from "@/api/AuthContext";
 import { LANGUAGES } from "@/i18n/translations";
 
 const PAGE_KEYS: Record<string, string> = {
   "/": "dashboard",
   "/shipments": "shipments",
+  "/marketplace": "marketplace",
+  "/live-tracking": "liveTracking",
   "/tracking": "tracking",
+  "/documents": "documents",
+  "/invoices": "invoices",
   "/quotation": "quotation",
   "/load-calculator": "loadCalculator",
+  "/rate-estimator": "rateEstimator",
+  "/settings": "settings",
 };
 
 export function Topbar({ pathname }: { pathname: string }) {
@@ -22,7 +29,7 @@ export function Topbar({ pathname }: { pathname: string }) {
   const page = PAGE_KEYS[key] ?? "dashboard";
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-slate-200 bg-white/90 px-6 backdrop-blur">
+    <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-slate-200 bg-white/80 px-6 backdrop-blur-md">
       <div className="min-w-0">
         <h1 className="truncate text-base font-semibold text-slate-900">
           {t(`page.${page}.title`)}
@@ -94,15 +101,60 @@ export function Topbar({ pathname }: { pathname: string }) {
           )}
         </div>
 
-        <div className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-white py-1 pl-1 pr-3">
-          <Avatar name="Acme Logistics" size="sm" />
-          <div className="hidden leading-tight lg:block">
-            <p className="text-sm font-medium text-slate-800">Acme Logistics</p>
-            <p className="text-[11px] text-slate-400">Shipper · Pro</p>
-          </div>
-        </div>
+        <AccountMenu />
       </div>
     </header>
+  );
+}
+
+function AccountMenu() {
+  const navigate = useNavigate();
+  const { t } = useI18n();
+  const auth = useAuth();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-white py-1 pl-1 pr-2.5 transition hover:bg-slate-50"
+      >
+        <Avatar name="Acme Logistics" size="sm" />
+        <div className="hidden leading-tight lg:block">
+          <p className="text-sm font-medium text-slate-800">Acme Logistics</p>
+          <p className="text-[11px] text-slate-400">Shipper · Pro</p>
+        </div>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-12 z-20 w-52 animate-fade-in rounded-xl border border-slate-200 bg-white p-1.5 shadow-card-hover">
+            <button
+              onClick={() => {
+                setOpen(false);
+                navigate("/settings");
+              }}
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+            >
+              <SettingsIcon size={15} className="text-slate-400" />
+              {t("nav.settings")}
+            </button>
+            {auth.live && (
+              <button
+                onClick={async () => {
+                  setOpen(false);
+                  await auth.logout();
+                }}
+                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-red-600 transition hover:bg-red-50"
+              >
+                <LogOut size={15} />
+                {t("settings.signOut")}
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

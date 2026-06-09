@@ -12,6 +12,8 @@ import { Marketplace } from "@/pages/Marketplace";
 import { Documents } from "@/pages/Documents";
 import { LiveTracking } from "@/pages/LiveTracking";
 import { RateEstimator } from "@/pages/RateEstimator";
+import { Invoices } from "@/pages/Invoices";
+import { Settings } from "@/pages/Settings";
 import { Login } from "@/pages/Login";
 import { NotFound } from "@/pages/NotFound";
 import { useAuth } from "@/api/AuthContext";
@@ -40,6 +42,8 @@ export default function App() {
         <Route path="documents" element={<Documents />} />
         <Route path="live-tracking" element={<LiveTracking />} />
         <Route path="rate-estimator" element={<RateEstimator />} />
+        <Route path="invoices" element={<Invoices />} />
+        <Route path="settings" element={<Settings />} />
         <Route path="tracking" element={<Tracking />} />
         <Route path="tracking/:id" element={<Tracking />} />
         <Route path="quotation" element={<Quotation />} />

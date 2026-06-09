@@ -182,10 +182,10 @@ export function Shipments() {
                   <Th onClick={() => toggleSort("reference")} active={sort.key === "reference"}>
                     Reference
                   </Th>
-                  <th className="px-4 py-3 font-medium">Lane</th>
-                  <th className="px-4 py-3 font-medium">Mode</th>
-                  <th className="px-4 py-3 font-medium">Carrier</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="row-pad-y px-4 font-medium">Lane</th>
+                  <th className="row-pad-y px-4 font-medium">Mode</th>
+                  <th className="row-pad-y px-4 font-medium">Carrier</th>
+                  <th className="row-pad-y px-4 font-medium">Status</th>
                   <Th onClick={() => toggleSort("progress")} active={sort.key === "progress"}>
                     Progress
                   </Th>
@@ -222,7 +222,7 @@ function Th({
   className?: string;
 }) {
   return (
-    <th className={cn("px-4 py-3 font-medium", className)}>
+    <th className={cn("row-pad-y px-4 font-medium", className)}>
       <button
         onClick={onClick}
         className={cn(
@@ -243,11 +243,11 @@ function Row({ s, onClick }: { s: Shipment; onClick: () => void }) {
       onClick={onClick}
       className="cursor-pointer transition hover:bg-slate-50"
     >
-      <td className="px-4 py-3">
+      <td className="row-pad-y px-4">
         <p className="font-semibold text-slate-900">{s.reference}</p>
         <p className="text-xs text-slate-400">{s.commodity}</p>
       </td>
-      <td className="px-4 py-3">
+      <td className="row-pad-y px-4">
         <div className="flex items-center gap-1.5 text-slate-700">
           <span className="font-medium">{s.origin.code ?? s.origin.city}</span>
           <span className="text-slate-300">→</span>
@@ -257,16 +257,16 @@ function Row({ s, onClick }: { s: Shipment; onClick: () => void }) {
           {s.origin.city} → {s.destination.city}
         </p>
       </td>
-      <td className="px-4 py-3">
+      <td className="row-pad-y px-4">
         <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
           {s.mode}
         </span>
       </td>
-      <td className="px-4 py-3 text-slate-600">{s.carrier}</td>
-      <td className="px-4 py-3">
+      <td className="row-pad-y px-4 text-slate-600">{s.carrier}</td>
+      <td className="row-pad-y px-4">
         <StatusPill status={s.status} />
       </td>
-      <td className="px-4 py-3">
+      <td className="row-pad-y px-4">
         <div className="flex items-center gap-2">
           <ProgressBar
             value={s.progress}
@@ -276,12 +276,12 @@ function Row({ s, onClick }: { s: Shipment; onClick: () => void }) {
           <span className="w-8 text-xs text-slate-500">{s.progress}%</span>
         </div>
       </td>
-      <td className="px-4 py-3 text-slate-600">
+      <td className="row-pad-y px-4 text-slate-600">
         <span className={cn(s.status === "delayed" && "text-red-600 font-medium")}>
           {formatDate(s.etaDate)}
         </span>
       </td>
-      <td className="px-4 py-3 text-right font-medium text-slate-900">
+      <td className="row-pad-y px-4 text-right font-medium text-slate-900">
         {formatCurrency(s.valueUsd)}
       </td>
     </tr>
