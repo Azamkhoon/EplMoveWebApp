@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (turbo, all packages + services + SPA)
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: In-process verification (PGlite — real Postgres engine, no Docker)
+        run: pnpm verify:inproc

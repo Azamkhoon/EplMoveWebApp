@@ -28,5 +28,15 @@ scripts/keys/
 .docstore
 **/.docstore
 
+# Terraform (commit .terraform.lock.hcl; ignore local state + caches + tfvars)
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+!*.tfvars.example
+override.tf
+override.tf.json
+
 # OS
 .DS_Store

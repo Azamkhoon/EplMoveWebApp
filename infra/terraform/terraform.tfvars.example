@@ -1,0 +1,9 @@
+project_id = "your-gcp-project"
+region     = "europe-west1"
+env        = "prod"
+image_tag  = "v1.0.0"
+
+# Tune capacity:
+# db_tier               = "db-custom-2-7680"
+# gateway_min_instances = 1
+# service_min_instances = 0

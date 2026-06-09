@@ -1,0 +1,87 @@
+name: Deploy
+
+# Build + push all service images to Artifact Registry, then terraform apply.
+# Auth uses Workload Identity Federation (no long-lived keys).
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  REGION: europe-west1
+  ENV: prod
+
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    strategy:
+      matrix:
+        service:
+          - api-gateway
+          - auth-svc
+          - tenant-svc
+          - load-svc
+          - carrier-svc
+          - quote-svc
+          - shipment-svc
+          - tracking-svc
+          - doc-svc
+          - genius-svc
+          - billing-svc
+          - notify-svc
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        run: echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOYER_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build & push ${{ matrix.service }}
+        run: |
+          IMG="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/epl-move-${{ env.ENV }}/${{ matrix.service }}:${{ steps.meta.outputs.tag }}"
+          docker build -f services/${{ matrix.service }}/Dockerfile -t "$IMG" .
+          docker push "$IMG"
+
+  terraform:
+    needs: images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOYER_SA }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform apply
+        working-directory: infra/terraform
+        run: |
+          terraform init
+          terraform apply -auto-approve \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -var="region=${{ env.REGION }}" \
+            -var="env=${{ env.ENV }}" \
+            -var="image_tag=${{ needs.images.outputs.tag }}"
+
+      # Migrations run as the OWNER role against Cloud SQL (via the Auth Proxy),
+      # then the app-role grants are (re)applied. Wire this to a Cloud SQL Auth
+      # Proxy sidecar / one-shot job with the owner DSN in a later step.
