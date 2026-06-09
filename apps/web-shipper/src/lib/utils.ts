@@ -73,6 +73,20 @@ export const STATUS_META: Record<
     bg: "bg-slate-100",
     ring: "ring-slate-200",
   },
+  booked: {
+    label: "Booked",
+    dot: "bg-indigo-500",
+    text: "text-indigo-700",
+    bg: "bg-indigo-50",
+    ring: "ring-indigo-200",
+  },
+  cancelled: {
+    label: "Cancelled",
+    dot: "bg-slate-400",
+    text: "text-slate-500",
+    bg: "bg-slate-50",
+    ring: "ring-slate-200",
+  },
   in_transit: {
     label: "In Transit",
     dot: "bg-amber-500",

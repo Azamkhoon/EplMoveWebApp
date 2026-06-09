@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowUpDown,
   Boxes,
   Download,
+  Loader2,
   Plus,
   Search,
   SlidersHorizontal,
@@ -15,6 +16,9 @@ import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Field";
 import { EmptyState, ProgressBar } from "@/components/ui/Misc";
 import { SHIPMENTS, STATUS_COUNTS } from "@/data/shipments";
+import { api, LIVE } from "@/api/client";
+import { toViewShipment } from "@/data/live-adapters";
+import { ApiError } from "@epl/sdk";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import type { Shipment, ShipmentStatus, TransportMode } from "@/types";
 
@@ -40,9 +44,23 @@ export function Shipments() {
     key: "etaDate",
     dir: "asc",
   });
+  const [liveShipments, setLiveShipments] = useState<Shipment[] | null>(null);
+  const [loading, setLoading] = useState(LIVE);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!LIVE || !api) return;
+    api
+      .listShipments()
+      .then((list) => setLiveShipments(list.map(toViewShipment)))
+      .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load shipments"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const source = liveShipments ?? SHIPMENTS;
 
   const rows = useMemo(() => {
-    let list = SHIPMENTS.filter((s) => {
+    let list = source.filter((s) => {
       if (filter !== "all" && s.status !== filter) return false;
       if (mode !== "all" && s.mode !== mode) return false;
       if (query) {
@@ -65,7 +83,7 @@ export function Shipments() {
       return String(av).localeCompare(String(bv)) * dir;
     });
     return list;
-  }, [filter, query, mode, sort]);
+  }, [source, filter, query, mode, sort]);
 
   function toggleSort(key: SortKey) {
     setSort((s) =>
@@ -78,11 +96,19 @@ export function Shipments() {
   const tabItems = TABS.map((t) => ({
     id: t.id,
     label: t.label,
-    count: t.id === "all" ? SHIPMENTS.length : STATUS_COUNTS[t.id as ShipmentStatus] ?? 0,
+    count:
+      t.id === "all"
+        ? source.length
+        : LIVE
+          ? source.filter((s) => s.status === t.id).length
+          : STATUS_COUNTS[t.id as ShipmentStatus] ?? 0,
   }));
 
   return (
     <div className="space-y-5">
+      {error && (
+        <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">{error}</div>
+      )}
       {/* Toolbar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Tabs
@@ -129,11 +155,19 @@ export function Shipments() {
           </div>
         </div>
 
-        {rows.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-400">
+            <Loader2 size={16} className="animate-spin" /> Loading shipments…
+          </div>
+        ) : rows.length === 0 ? (
           <EmptyState
             icon={<Boxes size={22} />}
-            title="No shipments found"
-            description="Try adjusting your filters or search terms."
+            title={LIVE ? "No shipments yet" : "No shipments found"}
+            description={
+              LIVE
+                ? "Accept a carrier bid in the Marketplace to create your first shipment."
+                : "Try adjusting your filters or search terms."
+            }
             action={
               <Button variant="outline" size="sm" onClick={() => { setQuery(""); setMode("all"); setFilter("all"); }}>
                 Clear filters

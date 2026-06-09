@@ -163,11 +163,15 @@ export class QuoteService {
       await c.query(`UPDATE quote.quotes SET status='awarded' WHERE id=$1`, [quoteId]);
 
       const acceptedBid = this.rowToBid(b[0]);
+      // Enrich with the carrier summary so downstream consumers (shipment-svc,
+      // billing-svc, notify-svc) get the real carrier name, not a fallback.
+      const summaries = await this.carriers.summaries([acceptedBid.carrierId]);
+      const enrichedBid = { ...acceptedBid, carrier: summaries[acceptedBid.carrierId] };
       await this.emit(c, ctx, Events.QuoteEventType.BidAccepted, quoteId, {
         quoteId,
         loadId: q[0].load_id,
         reference: q[0].reference,
-        bid: acceptedBid,
+        bid: enrichedBid,
       });
     });
     return this.getById(ctx, quoteId);

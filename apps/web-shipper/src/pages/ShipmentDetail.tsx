@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   CalendarDays,
   FileText,
   ListChecks,
+  Loader2,
   MapPin,
   MessageSquare,
   Navigation,
@@ -21,6 +22,8 @@ import { ShipmentDocs } from "@/components/shipment/ShipmentDocs";
 import { ShipmentTracking } from "@/components/shipment/ShipmentTracking";
 import { ChatPanel } from "@/components/shipment/ChatPanel";
 import { getShipment } from "@/data/shipments";
+import { api, LIVE } from "@/api/client";
+import { toViewShipment } from "@/data/live-adapters";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 import type { Shipment } from "@/types";
 import { NotFound } from "./NotFound";
@@ -30,10 +33,55 @@ type Tab = "overview" | "docs" | "status" | "tracking" | "chat";
 export function ShipmentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const shipment = id ? getShipment(id) : undefined;
   const [tab, setTab] = useState<Tab>("overview");
+  const [liveShipment, setLiveShipment] = useState<Shipment | null>(null);
+  const [loading, setLoading] = useState(LIVE);
+  const [notFound, setNotFound] = useState(false);
 
-  if (!shipment) return <NotFound />;
+  useEffect(() => {
+    if (!LIVE || !api || !id) return;
+    let active = true;
+    (async () => {
+      try {
+        const s = await api.getShipment(id);
+        const view = toViewShipment(s);
+        // Pull the shipment's documents from doc-svc and merge them in.
+        try {
+          const docs = await api.listDocuments({ shipmentId: id });
+          view.documents = docs.map((d) => ({
+            id: d.id,
+            name: d.name,
+            type: d.type as Shipment["documents"][number]["type"],
+            status: (d.status === "verified" ? "verified" : "pending") as Shipment["documents"][number]["status"],
+            uploadedAt: d.uploadedAt ?? view.createdAt,
+            uploadedBy: "—",
+            sizeKb: Math.max(1, Math.round((d.sizeBytes ?? 0) / 1024)),
+          })) as Shipment["documents"];
+        } catch {
+          /* docs are optional for the detail view */
+        }
+        if (active) setLiveShipment(view);
+      } catch {
+        if (active) setNotFound(true);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  const shipment = LIVE ? liveShipment : id ? getShipment(id) : undefined;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-24 text-sm text-slate-400">
+        <Loader2 size={16} className="animate-spin" /> Loading shipment…
+      </div>
+    );
+  }
+  if (notFound || !shipment) return <NotFound />;
 
   const tabs = [
     { id: "overview", label: "Overview", icon: <Package size={15} /> },

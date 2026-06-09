@@ -60,7 +60,7 @@ function doc(
   };
 }
 
-const DOC_SETS: Record<ShipmentStatus, ShipmentDocument[]> = {
+const DOC_SETS: Partial<Record<ShipmentStatus, ShipmentDocument[]>> = {
   draft: [
     doc("Commercial Invoice", "pending"),
     doc("Packing List", "missing"),
@@ -233,7 +233,7 @@ export const SHIPMENTS: Shipment[] = SEEDS.map((s, i) => {
     currentLocation: currentPoint
       ? { ...currentPoint, city: "En route", country: "" }
       : undefined,
-    documents: DOC_SETS[s.status].map((d) => ({ ...d, id: `${d.id}-${i}` })),
+    documents: (DOC_SETS[s.status] ?? []).map((d) => ({ ...d, id: `${d.id}-${i}` })),
     events: buildEvents(s.status, s.progress, origin.city, destination.city),
     messages: buildMessages(s.status, s.carrier),
     route,

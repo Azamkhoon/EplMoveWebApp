@@ -17,6 +17,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Tabs } from "@/components/ui/Tabs";
 import { EmptyState } from "@/components/ui/Misc";
 import { SAMPLE_QUOTES } from "@/data/quotes";
+import { LIVE } from "@/api/client";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { QuoteOption, TransportMode } from "@/types";
 
@@ -65,6 +66,23 @@ export function Quotation() {
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+      {LIVE && (
+        <div className="xl:col-span-3">
+          <Card>
+            <CardBody className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+              <p className="text-sm text-slate-600">
+                <span className="font-semibold text-slate-900">Live mode:</span> request real carrier
+                bids from your posted loads in the Marketplace — compare rates, transit and ratings,
+                then accept to create a shipment.
+              </p>
+              <Button size="sm" onClick={() => navigate("/marketplace")}>
+                Go to Marketplace
+                <ArrowRight size={14} />
+              </Button>
+            </CardBody>
+          </Card>
+        </div>
+      )}
       {/* Request form */}
       <Card className="xl:col-span-1">
         <CardHeader title="Request a quote" subtitle="Compare carrier rates instantly" />

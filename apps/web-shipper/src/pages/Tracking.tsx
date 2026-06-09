@@ -1,23 +1,34 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Navigation, Search } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Field";
 import { StatusPill } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/Misc";
 import { ShipmentTracking } from "@/components/shipment/ShipmentTracking";
 import { StatusTimeline } from "@/components/shipment/StatusTimeline";
 import { SHIPMENTS } from "@/data/shipments";
+import { api, LIVE } from "@/api/client";
+import { toViewShipment } from "@/data/live-adapters";
 import { cn, formatDate } from "@/lib/utils";
+import type { Shipment } from "@/types";
 
 export function Tracking() {
   const { id } = useParams();
-  const trackable = SHIPMENTS.filter((s) =>
-    ["in_transit", "delayed", "posted"].includes(s.status)
-  );
+  const [liveShipments, setLiveShipments] = useState<Shipment[] | null>(null);
+
+  useEffect(() => {
+    if (!LIVE || !api) return;
+    api.listShipments().then((list) => setLiveShipments(list.map(toViewShipment))).catch(() => setLiveShipments([]));
+  }, []);
+
+  const all = liveShipments ?? SHIPMENTS;
+  // In live mode show all shipments (booked/in_transit/etc.); mock keeps its filter.
+  const trackable = LIVE
+    ? all
+    : all.filter((s) => ["in_transit", "delayed", "posted"].includes(s.status));
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(
-    id ?? trackable[0]?.id ?? SHIPMENTS[0].id
-  );
+  const [selectedId, setSelectedId] = useState<string | undefined>(id);
 
   const filtered = useMemo(() => {
     if (!query) return trackable;
@@ -31,7 +42,19 @@ export function Tracking() {
   }, [query, trackable]);
 
   const selected =
-    SHIPMENTS.find((s) => s.id === selectedId) ?? trackable[0] ?? SHIPMENTS[0];
+    all.find((s) => s.id === selectedId) ?? trackable[0] ?? all[0];
+
+  if (!selected) {
+    return (
+      <Card>
+        <EmptyState
+          icon={<Navigation size={22} />}
+          title="Nothing to track yet"
+          description="Shipments appear here once you accept a carrier bid in the Marketplace."
+        />
+      </Card>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

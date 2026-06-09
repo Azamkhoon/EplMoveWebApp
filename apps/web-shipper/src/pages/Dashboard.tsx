@@ -38,22 +38,39 @@ import {
   WEEKLY_VOLUME,
 } from "@/data/analytics";
 import { SHIPMENTS } from "@/data/shipments";
+import { api, LIVE } from "@/api/client";
+import { toViewShipment } from "@/data/live-adapters";
+import { useEffect, useState } from "react";
 import { formatCompact, formatCurrency, relativeTime } from "@/lib/utils";
+import type { Shipment as ViewShipment } from "@/types";
 
 const DONUT_COLORS = ["#1d4ed8", "#3b82f6", "#60a9fa", "#93bbfd", "#bfd6fe"];
 
 export function Dashboard() {
   const navigate = useNavigate();
 
-  const active = SHIPMENTS.filter((s) =>
-    ["posted", "in_transit", "delayed"].includes(s.status)
+  // Live KPIs/activity/map come from real shipments + invoices; the historical
+  // trend charts below stay on sample analytics (no time-series service yet).
+  const [liveShipments, setLiveShipments] = useState<ViewShipment[] | null>(null);
+  const [liveSpend, setLiveSpend] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!LIVE || !api) return;
+    api.listShipments().then((l) => setLiveShipments(l.map(toViewShipment))).catch(() => setLiveShipments([]));
+    api.listInvoices().then((inv) => setLiveSpend(inv.reduce((s, i) => s + i.amount.amount, 0))).catch(() => setLiveSpend(0));
+  }, []);
+
+  const shipmentsData = liveShipments ?? SHIPMENTS;
+
+  const active = shipmentsData.filter((s) =>
+    ["posted", "booked", "in_transit", "delayed"].includes(s.status)
   );
-  const inTransit = SHIPMENTS.filter((s) =>
+  const inTransit = shipmentsData.filter((s) =>
     ["in_transit", "delayed"].includes(s.status)
   );
-  const delivered = SHIPMENTS.filter((s) => s.status === "delivered");
-  const openQuotes = SHIPMENTS.filter((s) => s.status === "posted");
-  const totalSpend = SHIPMENTS.reduce((sum, s) => sum + s.costUsd, 0);
+  const delivered = shipmentsData.filter((s) => s.status === "delivered");
+  const openQuotes = shipmentsData.filter((s) => ["posted", "booked"].includes(s.status));
+  const totalSpend = liveSpend ?? shipmentsData.reduce((sum, s) => sum + s.costUsd, 0);
 
   // Map markers: vehicles for moving shipments, load pins for posted origins
   const markers: MapMarker[] = [];
@@ -82,7 +99,7 @@ export function Dashboard() {
     });
   });
 
-  const activity = [...SHIPMENTS]
+  const activity = [...shipmentsData]
     .flatMap((s) =>
       s.events
         .filter((e) => e.completed)
@@ -117,11 +134,11 @@ export function Dashboard() {
           icon={<Truck size={18} />}
           trend={3}
           accent="amber"
-          hint={`${SHIPMENTS.filter((s) => s.status === "delayed").length} delayed`}
+          hint={`${shipmentsData.filter((s) => s.status === "delayed").length} delayed`}
         />
         <StatCard
-          label="Delivered (90d)"
-          value={delivered.length + 61}
+          label={LIVE ? "Delivered" : "Delivered (90d)"}
+          value={LIVE ? delivered.length : delivered.length + 61}
           icon={<Clock size={18} />}
           trend={12}
           accent="emerald"

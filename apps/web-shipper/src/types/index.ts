@@ -1,11 +1,14 @@
 export type ShipmentStatus =
   | "posted"
   | "draft"
+  | "booked"
   | "in_transit"
   | "delivered"
-  | "delayed";
+  | "delayed"
+  | "cancelled";
 
-export type TransportMode = "FTL" | "LTL" | "Ocean" | "Air" | "Rail";
+// "Multimodal" is the live backend's extra mode (Ocean/Air/Road/Rail/Multimodal).
+export type TransportMode = "FTL" | "LTL" | "Ocean" | "Air" | "Rail" | "Road" | "Multimodal";
 
 export type DocumentType =
   | "Bill of Lading"
