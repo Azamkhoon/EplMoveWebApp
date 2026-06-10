@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Navigation, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { Tabs } from "@/components/ui/Tabs";
 import { useAuth } from "@/api/AuthContext";
 import { ApiError } from "@epl/sdk";
+import { Logo } from "@/components/brand/Logo";
 
 type Mode = "login" | "register" | "otp";
 
@@ -39,14 +40,8 @@ export function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
       <div className="w-full max-w-md">
-        <div className="mb-6 flex items-center justify-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 shadow-lg shadow-brand-600/30">
-            <Navigation size={22} className="text-white" />
-          </div>
-          <div>
-            <p className="text-lg font-bold text-slate-900">EPL Move</p>
-            <p className="text-xs text-slate-500">Shipper Portal</p>
-          </div>
+        <div className="mb-6 flex justify-center">
+          <Logo variant="full" size={56} />
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card">

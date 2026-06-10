@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { STATUS_COUNTS } from "@/data/shipments";
 import { useI18n } from "@/i18n/LanguageContext";
+import { Logo } from "@/components/brand/Logo";
 
 const NAV = [
   { to: "/", labelKey: "nav.dashboard", icon: LayoutDashboard, end: true },
@@ -61,14 +62,21 @@ export function Sidebar({
       )}
     >
       {/* Brand */}
-      <div className="flex h-16 items-center gap-3 border-b border-slate-100 px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 shadow-sm shadow-brand-600/30">
-          <Navigation size={18} className="text-white" />
-        </div>
+      <div
+        className={cn(
+          "flex h-16 items-center gap-3 border-b border-slate-100 px-4",
+          collapsed && "justify-center px-0",
+        )}
+      >
+        <Logo variant="mark" size={collapsed ? 34 : 38} className="shrink-0" />
         {!collapsed && (
           <div className="min-w-0 leading-tight">
-            <p className="truncate text-sm font-bold text-slate-900">EPL Move</p>
-            <p className="truncate text-[11px] text-slate-400">{t("brand.portal")}</p>
+            <p className="truncate text-sm font-extrabold tracking-tight text-slate-900">
+              EPL M<span className="text-[#c8a24a]">O</span>VE
+            </p>
+            <p className="truncate text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
+              {t("brand.portal")}
+            </p>
           </div>
         )}
       </div>
