@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException, ConflictException } from "@nestjs/common";
 import { Pool } from "pg";
 import { config } from "../../config";
-import { DEFAULT_ADMIN_ROLE } from "../../db/seed";
+import { DEFAULT_ADMIN_ROLE, CARRIER_ADMIN_ROLE } from "../../db/seed";
+
+export type TenantKind = "shipper" | "carrier";
 
 export interface ResolvedMembership {
   tenantId: string;
@@ -29,7 +31,12 @@ export class TenantService {
   });
 
   /** Create a tenant and make `userId` its admin. Called by auth-svc on register. */
-  async provisionTenant(userId: string, tenantName: string): Promise<ResolvedMembership> {
+  async provisionTenant(
+    userId: string,
+    tenantName: string,
+    kind: TenantKind = "shipper",
+  ): Promise<ResolvedMembership> {
+    const adminRole = kind === "carrier" ? CARRIER_ADMIN_ROLE : DEFAULT_ADMIN_ROLE;
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
@@ -47,16 +54,16 @@ export class TenantService {
       }
 
       const { rows: tRows } = await client.query<{ id: string }>(
-        "INSERT INTO tenant.tenants (name, slug) VALUES ($1, $2) RETURNING id",
-        [tenantName, slug],
+        "INSERT INTO tenant.tenants (name, slug, kind) VALUES ($1, $2, $3) RETURNING id",
+        [tenantName, slug, kind],
       );
       const tenantId = tRows[0]!.id;
 
       const { rows: rRows } = await client.query<{ id: string }>(
         "SELECT id FROM tenant.roles WHERE tenant_id IS NULL AND key = $1",
-        [DEFAULT_ADMIN_ROLE],
+        [adminRole],
       );
-      if (!rRows[0]) throw new Error("default admin role not seeded — run migrate");
+      if (!rRows[0]) throw new Error(`admin role ${adminRole} not seeded — run migrate`);
       const roleId = rRows[0].id;
 
       await client.query(
@@ -65,8 +72,24 @@ export class TenantService {
       );
 
       await client.query("COMMIT");
+
+      // Carrier tenants get a marketplace profile in carrier-svc (id = tenant id)
+      // so their bids resolve to a real carrier name. Best-effort: registration
+      // must not fail if carrier-svc is briefly unavailable.
+      if (kind === "carrier") {
+        try {
+          await fetch(`${config.CARRIER_SVC_URL.replace(/\/$/, "")}/internal/carriers/provision`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ tenantId, name: tenantName }),
+          });
+        } catch {
+          /* profile can be backfilled later */
+        }
+      }
+
       const perms = await this.permsForRole(roleId);
-      return { tenantId, tenantSlug: slug, role: DEFAULT_ADMIN_ROLE, perms };
+      return { tenantId, tenantSlug: slug, role: adminRole, perms };
     } catch (err) {
       await client.query("ROLLBACK");
       if ((err as { code?: string }).code === "23505") {

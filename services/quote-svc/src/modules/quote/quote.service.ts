@@ -5,9 +5,14 @@ import {
   Bid,
   CreateQuoteInput,
   SubmitBidInput,
+  CarrierBidInput,
   Events,
   type Carrier,
+  type MarketplaceQuote,
+  type CarrierBid,
 } from "@epl/contracts";
+
+type CarrierBidRow = CarrierBid;
 import { enqueueOutbox, makeEvent } from "@epl/events";
 import type { RequestContext } from "@epl/auth";
 import { config } from "../../config";
@@ -175,6 +180,122 @@ export class QuoteService {
       });
     });
     return this.getById(ctx, quoteId);
+  }
+
+  // ════════════════════ Carrier marketplace (two-sided) ════════════════════
+  //
+  // Carrier requests run with app.marketplace='on' (NOT pinned to the carrier's
+  // own tenant), which the permissive marketplace_* RLS policies key off. This
+  // lets carriers read OPEN quotes across all shipper tenants and insert a bid,
+  // while every shipper-side path stays tenant-isolated.
+
+  private async marketplaceTx<T>(callerTenantId: string, fn: (c: PoolClient) => Promise<T>): Promise<T> {
+    const c = await this.pool.connect();
+    try {
+      await c.query("BEGIN");
+      await c.query("SELECT set_config('app.marketplace', 'on', true)");
+      // Pin app.tenant_id to a VALID uuid (the carrier's own tenant). A pooled
+      // connection that previously ran tx() has session app.tenant_id = ''
+      // (Postgres resets an undefined custom GUC to empty, not NULL), and the
+      // tenant_isolation policy would otherwise evaluate ''::uuid and throw.
+      await c.query("SELECT set_config('app.tenant_id', $1, true)", [callerTenantId]);
+      await c.query("SET LOCAL search_path TO quote, public");
+      const out = await fn(c);
+      await c.query("COMMIT");
+      return out;
+    } catch (e) {
+      await c.query("ROLLBACK");
+      throw e;
+    } finally {
+      c.release();
+    }
+  }
+
+  /** Open quotes across all shippers (carrier marketplace), with bid stats. */
+  async listOpenQuotes(ctx: Ctx): Promise<MarketplaceQuote[]> {
+    return this.marketplaceTx(ctx.tenantId, async (c) => {
+      const { rows } = await c.query(
+        `SELECT q.id, q.reference, q.mode, q.created_at, q.expires_at,
+                count(b.id)::int                                 AS bid_count,
+                count(b.id) FILTER (WHERE b.carrier_id = $1)::int AS my_bid_count,
+                min(b.price_amount)                              AS best_price
+           FROM quote.quotes q
+           LEFT JOIN quote.bids b ON b.quote_id = q.id
+          WHERE q.status = 'open'
+          GROUP BY q.id
+          ORDER BY q.created_at DESC
+          LIMIT 100`,
+        [ctx.tenantId],
+      );
+      return rows.map((r) => ({
+        id: r.id,
+        reference: r.reference,
+        mode: r.mode,
+        createdAt: new Date(r.created_at).toISOString(),
+        expiresAt: r.expires_at ? new Date(r.expires_at).toISOString() : undefined,
+        bidCount: r.bid_count,
+        myBidCount: r.my_bid_count,
+        bestPrice: r.best_price != null ? Number(r.best_price) : undefined,
+      }));
+    });
+  }
+
+  /** Carrier submits a bid on an open quote. carrier_id = carrier's tenantId. */
+  async submitCarrierBid(ctx: Ctx, quoteId: string, body: unknown): Promise<Bid> {
+    const input = CarrierBidInput.parse(body);
+    return this.marketplaceTx(ctx.tenantId, async (c) => {
+      const { rows: q } = await c.query(
+        `SELECT id, tenant_id, status, mode FROM quote.quotes WHERE id = $1`,
+        [quoteId],
+      );
+      if (!q[0]) throw new NotFoundException("quote not found");
+      if (q[0].status !== "open") throw new ConflictException("quote is not open");
+
+      // One active bid per carrier per quote: replace a prior submission.
+      await c.query(
+        `DELETE FROM quote.bids WHERE quote_id = $1 AND carrier_id = $2 AND status = 'submitted'`,
+        [quoteId, ctx.tenantId],
+      );
+      const { rows } = await c.query(
+        `INSERT INTO quote.bids
+           (tenant_id, quote_id, carrier_id, mode, price_amount, price_currency, transit_days, co2_kg, valid_until)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+        [
+          q[0].tenant_id,          // bid belongs to the shipper tenant (RLS owner)
+          quoteId,
+          ctx.tenantId,            // carrier_id = the carrier's tenant
+          input.mode ?? q[0].mode,
+          input.price.amount,
+          input.price.currency,
+          input.transitDays,
+          input.co2Kg ?? null,
+          input.validUntil ?? null,
+        ],
+      );
+      const bid = this.rowToBid(rows[0]);
+      await this.emit(c, ctx, Events.QuoteEventType.BidSubmitted, quoteId, { bid });
+      return bid;
+    });
+  }
+
+  /** A carrier's own bids across the marketplace, newest first. */
+  async listCarrierBids(ctx: Ctx): Promise<CarrierBidRow[]> {
+    return this.marketplaceTx(ctx.tenantId, async (c) => {
+      const { rows } = await c.query(
+        `SELECT b.*, q.reference, q.status AS quote_status
+           FROM quote.bids b
+           JOIN quote.quotes q ON q.id = b.quote_id
+          WHERE b.carrier_id = $1
+          ORDER BY b.created_at DESC
+          LIMIT 200`,
+        [ctx.tenantId],
+      );
+      return rows.map((r) => ({
+        ...this.rowToBid(r),
+        reference: r.reference as string,
+        quoteStatus: r.quote_status as CarrierBidRow["quoteStatus"],
+      }));
+    });
   }
 
   // ── Demo: synthesize a spread of bids from real seeded carriers ──

@@ -5,6 +5,7 @@ import { TenantService } from "./tenant.service";
 const ProvisionInput = z.object({
   userId: z.string().uuid(),
   tenantName: z.string().min(1),
+  kind: z.enum(["shipper", "carrier"]).default("shipper"),
 });
 
 /**
@@ -19,7 +20,7 @@ export class TenantInternalController {
   @HttpCode(200)
   async provision(@Body() body: unknown) {
     const input = ProvisionInput.parse(body);
-    return this.tenants.provisionTenant(input.userId, input.tenantName);
+    return this.tenants.provisionTenant(input.userId, input.tenantName, input.kind);
   }
 
   @Get("memberships/resolve")

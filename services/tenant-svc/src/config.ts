@@ -10,6 +10,7 @@ const schema = baseEnvSchema.extend({
   DB_PASSWORD: z.string().default("epl"),
   DB_NAME: z.string().default("epl_move"),
   DB_SCHEMA: z.string().default("tenant"),
+  CARRIER_SVC_URL: z.string().default("http://localhost:8084"),
 });
 
 export type AppConfig = z.infer<typeof schema>;

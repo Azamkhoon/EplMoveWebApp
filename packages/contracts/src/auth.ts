@@ -43,6 +43,7 @@ export const RegisterInput = z.object({
   password: z.string().min(8),
   name: z.string().min(1),
   tenantName: z.string().min(1), // creates the first tenant + makes user its admin
+  kind: z.enum(["shipper", "carrier"]).default("shipper"), // tenant type
 });
 export type RegisterInput = z.infer<typeof RegisterInput>;
 

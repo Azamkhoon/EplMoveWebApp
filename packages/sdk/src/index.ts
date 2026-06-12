@@ -11,6 +11,9 @@ import type {
   Shipment,
   ShipmentDocument,
   SubmitBidInput,
+  MarketplaceQuote,
+  CarrierBidInput,
+  CarrierBid,
   TrackingState,
   UpdateLoadInput,
   UploadDocumentInput,
@@ -99,7 +102,9 @@ export class EplClient {
   }
 
   // ── Auth ──
-  async register(input: RegisterInput): Promise<AuthTokens> {
+  // `kind` is optional here (defaults to "shipper" server-side) so shipper
+  // callers don't have to pass it; carrier portals send kind:"carrier".
+  async register(input: Omit<RegisterInput, "kind"> & { kind?: "shipper" | "carrier" }): Promise<AuthTokens> {
     const t = await this.request<AuthTokens>("/auth/register", {
       method: "POST",
       auth: false,
@@ -201,6 +206,25 @@ export class EplClient {
 
   acceptBid(quoteId: string, bidId: string): Promise<Quote> {
     return this.request<Quote>(`/quotes/${quoteId}/bids/${bidId}/accept`, { method: "POST" });
+  }
+
+  // ── Carrier marketplace (two-sided) ──
+  /** Open quotes across all shippers (carrier view). */
+  listOpenQuotes(): Promise<MarketplaceQuote[]> {
+    return this.request<MarketplaceQuote[]>("/marketplace/quotes");
+  }
+
+  /** The carrier's own bids, with quote reference + status. */
+  listMyBids(): Promise<CarrierBid[]> {
+    return this.request<CarrierBid[]>("/marketplace/bids");
+  }
+
+  /** Submit (or replace) a bid on an open quote as a carrier. */
+  submitMarketplaceBid(quoteId: string, input: CarrierBidInput): Promise<CarrierBid> {
+    return this.request<CarrierBid>(`/marketplace/quotes/${quoteId}/bids`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
   }
 
   // ── Shipments ──

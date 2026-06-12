@@ -65,3 +65,35 @@ export const SubmitBidInput = z.object({
   validUntil: z.string().datetime().optional(),
 });
 export type SubmitBidInput = z.infer<typeof SubmitBidInput>;
+
+// ── Carrier marketplace (two-sided) ──
+
+/** A row in the carrier's marketplace: an open quote with bid stats. */
+export const MarketplaceQuote = z.object({
+  id: z.string().uuid(),
+  reference: z.string(),
+  mode: TransportMode.or(z.literal("Any")),
+  createdAt: z.string().datetime(),
+  expiresAt: z.string().datetime().optional(),
+  bidCount: z.number().int().nonnegative(),
+  myBidCount: z.number().int().nonnegative(),
+  bestPrice: z.number().nonnegative().optional(),
+});
+export type MarketplaceQuote = z.infer<typeof MarketplaceQuote>;
+
+/** Carrier's bid submission (carrier_id is taken from the auth context). */
+export const CarrierBidInput = z.object({
+  mode: TransportMode.optional(), // defaults to the quote's mode
+  price: Money,
+  transitDays: z.number().int().positive(),
+  co2Kg: z.number().nonnegative().optional(),
+  validUntil: z.string().datetime().optional(),
+});
+export type CarrierBidInput = z.infer<typeof CarrierBidInput>;
+
+/** A carrier's own bid, with the quote reference + status for "My Bids". */
+export const CarrierBid = Bid.extend({
+  reference: z.string(),
+  quoteStatus: QuoteStatus,
+});
+export type CarrierBid = z.infer<typeof CarrierBid>;

@@ -71,6 +71,7 @@ async function bootstrap() {
   // Protected: verify JWT → attach identity → proxy to the domain services.
   app.use("/loads", requireAuth(), proxy(config.LOAD_SVC_URL));
   app.use("/quotes", requireAuth(), proxy(config.QUOTE_SVC_URL));
+  app.use("/marketplace", requireAuth(), proxy(config.QUOTE_SVC_URL)); // carrier-side, quote-svc
   app.use("/shipments", requireAuth(), proxy(config.SHIPMENT_SVC_URL));
   app.use("/carriers", requireAuth(), proxy(config.CARRIER_SVC_URL));
   app.use("/tracking", requireAuth(), proxy(config.TRACKING_SVC_URL));

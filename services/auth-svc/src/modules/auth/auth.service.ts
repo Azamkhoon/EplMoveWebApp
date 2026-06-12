@@ -70,6 +70,7 @@ export class AuthService {
     const membership = await this.tenant.provisionTenant({
       userId: user!.id,
       tenantName: input.tenantName,
+      kind: input.kind,
     });
 
     return this.issue(user!.id, membership, meta);

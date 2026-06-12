@@ -44,6 +44,11 @@ export class CarrierController {
   }
 }
 
+const ProvisionCarrierInput = z.object({
+  tenantId: z.string().uuid(),
+  name: z.string().min(1),
+});
+
 /** Internal (gateway-private): quote-svc enriches bids with carrier summaries. */
 @Controller("internal/carriers")
 export class CarrierInternalController {
@@ -57,5 +62,12 @@ export class CarrierInternalController {
   @Get()
   listAll(@Query("mode") mode?: string) {
     return this.carriers.list(mode);
+  }
+
+  /** tenant-svc calls this when a tenant registers with kind=carrier. */
+  @Post("provision")
+  provision(@Body() body: unknown) {
+    const input = ProvisionCarrierInput.parse(body);
+    return this.carriers.provision(input.tenantId, input.name);
   }
 }

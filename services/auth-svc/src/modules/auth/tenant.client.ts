@@ -20,6 +20,7 @@ export class TenantClient {
   async provisionTenant(input: {
     userId: string;
     tenantName: string;
+    kind?: "shipper" | "carrier";
   }): Promise<ResolvedMembership> {
     const res = await fetch(`${this.base}/internal/tenants/provision`, {
       method: "POST",

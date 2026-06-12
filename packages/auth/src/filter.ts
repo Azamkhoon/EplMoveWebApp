@@ -42,6 +42,20 @@ export class HttpErrorFilter implements ExceptionFilter {
       });
     }
 
+    // Unexpected (non-HTTP) error: log it — otherwise 500s are undiagnosable.
+    // eslint-disable-next-line no-console
+    console.error(
+      JSON.stringify({
+        level: "error",
+        msg: "unhandled exception",
+        traceId,
+        path: req?.url,
+        err:
+          exception instanceof Error
+            ? { name: exception.name, message: exception.message, stack: exception.stack }
+            : String(exception),
+      }),
+    );
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       error: { code: "INTERNAL", message: "Internal server error", traceId },
     });

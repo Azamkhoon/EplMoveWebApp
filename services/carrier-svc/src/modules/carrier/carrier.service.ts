@@ -74,6 +74,22 @@ export class CarrierService {
     return this.rowToCarrier(rows[0]);
   }
 
+  /**
+   * Upsert the marketplace profile for a carrier TENANT (called by tenant-svc
+   * when a tenant registers with kind=carrier). The profile id IS the tenant id,
+   * so marketplace bids (carrier_id = carrier tenant) resolve to a real name.
+   */
+  async provision(tenantId: string, name: string): Promise<Carrier> {
+    const { rows } = await this.pool.query(
+      `INSERT INTO carrier.carriers (id, tenant_id, name, modes)
+       VALUES ($1, $1, $2, '{Ocean,Air,Road,Rail}')
+       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, status = 'active'
+       RETURNING *`,
+      [tenantId, name],
+    );
+    return this.rowToCarrier(rows[0]);
+  }
+
   async rate(ctx: RequestContext, carrierId: string, stars: number, comment?: string): Promise<Carrier> {
     const client = await this.pool.connect();
     try {

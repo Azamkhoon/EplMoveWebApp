@@ -56,3 +56,33 @@ export class QuoteController {
     return this.quotes.acceptBid(ctx, id, bidId);
   }
 }
+
+/**
+ * Carrier-side marketplace. Same service, but these routes require carrier
+ * permissions and run cross-tenant (open quotes only) — see QuoteService
+ * marketplaceTx + the marketplace_* RLS policies.
+ */
+@Controller("marketplace")
+@UseInterceptors(ContextInterceptor)
+@UseGuards(PermissionsGuard)
+export class MarketplaceController {
+  constructor(private readonly quotes: QuoteService) {}
+
+  @Get("quotes")
+  @RequirePermissions("marketplace:read")
+  openQuotes(@Ctx() ctx: RequestContext) {
+    return this.quotes.listOpenQuotes(ctx);
+  }
+
+  @Get("bids")
+  @RequirePermissions("marketplace:read")
+  myBids(@Ctx() ctx: RequestContext) {
+    return this.quotes.listCarrierBids(ctx);
+  }
+
+  @Post("quotes/:id/bids")
+  @RequirePermissions("carrier:bid")
+  bid(@Ctx() ctx: RequestContext, @Param("id") id: string, @Body() body: unknown) {
+    return this.quotes.submitCarrierBid(ctx, id, body);
+  }
+}

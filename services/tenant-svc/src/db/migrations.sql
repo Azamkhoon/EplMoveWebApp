@@ -5,10 +5,13 @@ CREATE TABLE IF NOT EXISTS tenant.tenants (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name        text NOT NULL,
   slug        text NOT NULL,
+  kind        text NOT NULL DEFAULT 'shipper',  -- 'shipper' | 'carrier'
   plan        text NOT NULL DEFAULT 'free',
   status      text NOT NULL DEFAULT 'active',
   created_at  timestamptz NOT NULL DEFAULT now()
 );
+-- Backfill for databases created before `kind` existed.
+ALTER TABLE tenant.tenants ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'shipper';
 CREATE UNIQUE INDEX IF NOT EXISTS tenants_slug_uidx ON tenant.tenants (slug);
 
 CREATE TABLE IF NOT EXISTS tenant.permissions (
