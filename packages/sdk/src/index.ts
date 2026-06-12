@@ -376,4 +376,7 @@ export type {
   DocAssistResult,
   Invoice,
   Notification,
+  MarketplaceQuote,
+  CarrierBid,
+  CarrierBidInput,
 } from "@epl/contracts";

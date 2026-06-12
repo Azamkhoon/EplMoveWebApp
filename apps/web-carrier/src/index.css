@@ -1,0 +1,185 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+
+  /* Accent color (driven by Settings → Appearance). Default = blue. */
+  --accent-50: 239 245 255;
+  --accent-100: 219 232 254;
+  --accent-200: 191 214 254;
+  --accent-300: 147 187 253;
+  --accent-400: 96 154 250;
+  --accent-500: 59 130 246;
+  --accent-600: 29 78 216;
+  --accent-700: 30 64 175;
+
+  /* Density tokens (driven by Settings → Appearance). Default = cozy. */
+  --d-card-pad: 1.25rem;
+  --d-card-head-y: 1rem;
+  --d-row-y: 0.75rem;
+  --d-radius: 0.75rem;
+  --d-nav-y: 0.625rem;
+  --d-gap: 1.5rem;
+  --d-font: 0.875rem;
+}
+
+:root[data-density="comfortable"] {
+  --d-card-pad: 1.5rem;
+  --d-card-head-y: 1.25rem;
+  --d-row-y: 1rem;
+  --d-radius: 0.875rem;
+  --d-nav-y: 0.75rem;
+  --d-gap: 1.75rem;
+  --d-font: 0.9375rem;
+}
+
+:root[data-density="compact"] {
+  --d-card-pad: 0.875rem;
+  --d-card-head-y: 0.625rem;
+  --d-row-y: 0.5rem;
+  --d-radius: 0.625rem;
+  --d-nav-y: 0.4375rem;
+  --d-gap: 1rem;
+  --d-font: 0.8125rem;
+}
+
+:root[data-accent="indigo"] {
+  --accent-50: 238 242 255; --accent-100: 224 231 255; --accent-200: 199 210 254;
+  --accent-300: 165 180 252; --accent-400: 129 140 248; --accent-500: 99 102 241;
+  --accent-600: 79 70 229; --accent-700: 67 56 202;
+}
+:root[data-accent="emerald"] {
+  --accent-50: 236 253 245; --accent-100: 209 250 229; --accent-200: 167 243 208;
+  --accent-300: 110 231 183; --accent-400: 52 211 153; --accent-500: 16 185 129;
+  --accent-600: 5 150 105; --accent-700: 4 120 87;
+}
+:root[data-accent="violet"] {
+  --accent-50: 245 243 255; --accent-100: 237 233 254; --accent-200: 221 214 254;
+  --accent-300: 196 181 253; --accent-400: 167 139 250; --accent-500: 139 92 246;
+  --accent-600: 124 58 237; --accent-700: 109 40 217;
+}
+:root[data-accent="amber"] {
+  --accent-50: 255 251 235; --accent-100: 254 243 199; --accent-200: 253 230 138;
+  --accent-300: 252 211 77; --accent-400: 251 191 36; --accent-500: 245 158 11;
+  --accent-600: 217 119 6; --accent-700: 180 83 9;
+}
+
+/* Density-aware utility classes used by restyled surfaces. */
+@layer components {
+  .surface {
+    border-radius: var(--d-radius);
+  }
+  .card-pad {
+    padding: var(--d-card-pad);
+  }
+  .card-head-pad {
+    padding-top: var(--d-card-head-y);
+    padding-bottom: var(--d-card-head-y);
+  }
+  .row-pad-y {
+    padding-top: var(--d-row-y);
+    padding-bottom: var(--d-row-y);
+  }
+  .nav-pad-y {
+    padding-top: var(--d-nav-y);
+    padding-bottom: var(--d-nav-y);
+  }
+  .section-gap > * + * {
+    margin-top: var(--d-gap);
+  }
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply tracking-tight;
+  }
+}
+
+@layer components {
+  .input-base {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900
+      shadow-sm transition placeholder:text-slate-400
+      focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 9999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* Leaflet sizing + theme tweaks */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  font-family: "Inter", sans-serif;
+  background: #e2e8f0;
+  z-index: 0;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 8px 24px -6px rgba(11, 26, 46, 0.25);
+}
+
+.leaflet-popup-content {
+  margin: 12px 14px;
+  font-size: 13px;
+}
+
+.epl-marker-pulse {
+  position: relative;
+}
+.epl-marker-pulse::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: rgba(59, 130, 246, 0.45);
+  animation: pulse-ring 1.6s ease-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
