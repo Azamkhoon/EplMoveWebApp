@@ -16,7 +16,7 @@ const schema = baseEnvSchema.extend({
   GENIUS_SVC_URL: z.string().default("http://localhost:8089"),
   BILLING_SVC_URL: z.string().default("http://localhost:8090"),
   NOTIFY_SVC_URL: z.string().default("http://localhost:8091"),
-  CORS_ORIGIN: z.string().default("http://localhost:5173,http://localhost:5174,http://localhost:5175"),
+  CORS_ORIGIN: z.string().default("http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176"),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60000),
   RATE_LIMIT_MAX: z.coerce.number().default(120),
   REDIS_URL: z.string().optional(),

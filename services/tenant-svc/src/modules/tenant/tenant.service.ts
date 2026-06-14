@@ -134,6 +134,40 @@ export class TenantService {
     };
   }
 
+  async listAllTenants() {
+    const { rows } = await this.pool.query<{
+      id: string; name: string; slug: string; kind: string; created_at: string; member_count: string;
+    }>(
+      `SELECT t.id, t.name, t.slug, t.kind, t.created_at,
+              COUNT(m.id)::text AS member_count
+         FROM tenant.tenants t
+         LEFT JOIN tenant.memberships m ON m.tenant_id = t.id AND m.status = 'active'
+        GROUP BY t.id
+        ORDER BY t.created_at DESC`,
+    );
+    return rows.map((r) => ({ ...r, memberCount: Number(r.member_count) }));
+  }
+
+  async listMemberships(tenantId?: string) {
+    const params: unknown[] = [];
+    let where = "m.status = 'active'";
+    if (tenantId) { params.push(tenantId); where += ` AND m.tenant_id = $1`; }
+    const { rows } = await this.pool.query<{
+      id: string; tenant_id: string; tenant_name: string;
+      user_id: string; role_key: string; created_at: string;
+    }>(
+      `SELECT m.id, m.tenant_id, t.name AS tenant_name, m.user_id, r.key AS role_key, m.created_at
+         FROM tenant.memberships m
+         JOIN tenant.tenants t ON t.id = m.tenant_id
+         JOIN tenant.roles r   ON r.id = m.role_id
+        WHERE ${where}
+        ORDER BY m.created_at DESC
+        LIMIT 500`,
+      params,
+    );
+    return rows;
+  }
+
   private async permsForRole(roleId: string): Promise<string[]> {
     const { rows } = await this.pool.query<{ key: string }>(
       `SELECT p.key

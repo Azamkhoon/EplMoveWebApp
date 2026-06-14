@@ -82,6 +82,30 @@ async function bootstrap() {
   app.use("/invoices", requireAuth(), proxy(config.BILLING_SVC_URL));
   app.use("/notifications", requireAuth(), proxy(config.NOTIFY_SVC_URL));
 
+  // Platform admin — /admin/* → tenant-svc /platform/*. Permission enforced in tenant-svc.
+  app.use(
+    "/admin",
+    requireAuth(),
+    createProxyMiddleware({
+      target: config.TENANT_SVC_URL,
+      changeOrigin: true,
+      xfwd: true,
+      pathRewrite: (_path, req) => {
+        const r = req as express.Request;
+        return (r.baseUrl + r.url).replace(/^\/admin/, "/platform");
+      },
+      on: {
+        proxyReq: (proxyReq, req) => {
+          const r = req as express.Request;
+          for (const h of IDENTITY_HEADERS) {
+            const v = r.headers[h];
+            if (v) proxyReq.setHeader(h, String(v));
+          }
+        },
+      },
+    }),
+  );
+
   // WebSocket passthrough for live tracking. The browser authenticates via a
   // ?token= query param (verified by tracking-svc), so the gateway just proxies
   // the upgrade; identity headers aren't used on the WS hop.

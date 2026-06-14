@@ -30,6 +30,8 @@ export const PERMISSIONS = [
   "billing:pay",
   // notifications
   "notify:read",
+  // platform ops (platform_admin only — cross-tenant visibility)
+  "platform:admin",
 ] as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[number];
@@ -81,9 +83,16 @@ export const SYSTEM_ROLES: { key: string; name: string; perms: PermissionKey[] }
     perms: [...CARRIER_FULL, "tenant:manage", "tenant:members"],
   },
   { key: "carrier_member", name: "Carrier Member", perms: CARRIER_FULL },
+  {
+    key: "platform_admin",
+    name: "Platform Admin",
+    perms: ["platform:admin", "tenant:manage", "tenant:members", "billing:read", "notify:read"],
+  },
 ];
 
 /** Default role assigned to the creator of a new (shipper) tenant. */
 export const DEFAULT_ADMIN_ROLE = "shipper_admin";
 /** Default role for a tenant that registers as a carrier. */
 export const CARRIER_ADMIN_ROLE = "carrier_admin";
+/** System-level ops role. Assigned manually; not auto-provisioned. */
+export const PLATFORM_ADMIN_ROLE = "platform_admin";
