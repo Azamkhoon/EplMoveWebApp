@@ -1,16 +1,21 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Loader2, PlugZap } from "lucide-react";
 import { Shell } from "@/components/layout/Shell";
-import { Dashboard } from "@/pages/Dashboard";
+import { Dashboard }   from "@/pages/Dashboard";
 import { Marketplace } from "@/pages/Marketplace";
-import { MyBids } from "@/pages/MyBids";
-import { Login } from "@/pages/Login";
-import { useAuth } from "@/api/AuthContext";
+import { MyBids }      from "@/pages/MyBids";
+import { Dispatch }    from "@/pages/Dispatch";
+import { Fleet }       from "@/pages/Fleet";
+import { Drivers }     from "@/pages/Drivers";
+import { Shipments }   from "@/pages/Shipments";
+import { Financials }  from "@/pages/Financials";
+import { Analytics }   from "@/pages/Analytics";
+import { Login }       from "@/pages/Login";
+import { useAuth }     from "@/api/AuthContext";
 
 export default function App() {
   const auth = useAuth();
 
-  // The carrier portal only makes sense against the live marketplace.
   if (!auth.live) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-100 p-6 text-center">
@@ -33,15 +38,22 @@ export default function App() {
       </div>
     );
   }
+
   if (!auth.authed) return <Login />;
 
   return (
     <Routes>
       <Route element={<Shell />}>
-        <Route index element={<Dashboard />} />
+        <Route index            element={<Dashboard />}   />
+        <Route path="dispatch"  element={<Dispatch />}    />
+        <Route path="shipments" element={<Shipments />}   />
         <Route path="marketplace" element={<Marketplace />} />
-        <Route path="bids" element={<MyBids />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="bids"      element={<MyBids />}      />
+        <Route path="fleet"     element={<Fleet />}       />
+        <Route path="drivers"   element={<Drivers />}     />
+        <Route path="financials" element={<Financials />} />
+        <Route path="analytics" element={<Analytics />}   />
+        <Route path="*"         element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );

@@ -1,110 +1,183 @@
-import { useEffect, useMemo, useState } from "react";
-import { Gavel, Loader2 } from "lucide-react";
-import { Card } from "@/components/ui/Card";
-import { Tabs } from "@/components/ui/Tabs";
+import { useEffect, useState } from "react";
+import { CheckCircle2, Clock, Gavel, Loader2, XCircle } from "lucide-react";
 import { EmptyState } from "@/components/ui/Misc";
+import { Badge } from "@/components/ui/Badge";
+import { Tabs } from "@/components/ui/Tabs";
 import { api } from "@/api/client";
-import { ApiError, type CarrierBid } from "@epl/sdk";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import type { CarrierBid } from "@epl/sdk";
+import { formatCurrency, formatDateTime } from "@/lib/utils";
 
-type Filter = "all" | "submitted" | "accepted" | "rejected";
+type Tab = "pending" | "won" | "lost";
 
-const BID_TONE: Record<string, string> = {
-  submitted: "bg-amber-50 text-amber-700 ring-amber-200",
-  accepted: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  rejected: "bg-slate-100 text-slate-500 ring-slate-200",
-  withdrawn: "bg-slate-50 text-slate-400 ring-slate-200",
-};
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="text-xs text-slate-400">{label}</span>
+      <span className="text-right text-xs font-medium text-slate-800">{value}</span>
+    </div>
+  );
+}
+
+function BidDetailPanel({ bid }: { bid: CarrierBid }) {
+  const isWon  = bid.status === "accepted";
+  const isLost = bid.status === "rejected";
+
+  return (
+    <div className="border-l border-slate-100 bg-slate-50 p-6 lg:w-80 xl:w-96 shrink-0">
+      <div className="mb-4 flex items-center gap-2">
+        {isWon  && <CheckCircle2 size={18} className="text-emerald-500" />}
+        {isLost && <XCircle      size={18} className="text-slate-400"   />}
+        {!isWon && !isLost && <Clock size={18} className="text-amber-500" />}
+        <span className="text-sm font-semibold text-slate-900">
+          {isWon ? "You won this load" : isLost ? "Bid not selected" : "Awaiting decision"}
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        <Row label="Reference"    value={bid.reference} />
+        <Row label="Mode"         value={bid.mode} />
+        <Row label="Your rate"    value={formatCurrency(bid.price.amount)} />
+        <Row label="Transit"      value={`${bid.transitDays} days`} />
+        {bid.co2Kg != null && <Row label="CO₂" value={`${bid.co2Kg.toLocaleString()} kg`} />}
+        <Row label="Bid placed"   value={formatDateTime(bid.createdAt)} />
+        <Row label="Quote status" value={
+          <Badge tone={bid.quoteStatus === "awarded" ? "green" : bid.quoteStatus === "open" ? "blue" : "slate"}>
+            {bid.quoteStatus}
+          </Badge>
+        } />
+      </div>
+
+      {isWon && (
+        <div className="mt-5 rounded-lg bg-emerald-50 px-4 py-3 ring-1 ring-emerald-200">
+          <p className="text-xs font-medium text-emerald-700">
+            This bid was accepted. Coordinate with the shipper to confirm pickup details and assign a driver.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SummaryPill({ label, count, tone, suffix = "" }: {
+  label: string; count: number;
+  tone: "amber" | "green" | "slate" | "blue"; suffix?: string;
+}) {
+  const tones: Record<string, string> = {
+    amber: "bg-amber-50 text-amber-700 ring-amber-200",
+    green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    slate: "bg-slate-100 text-slate-600 ring-slate-200",
+    blue:  "bg-blue-50 text-blue-700 ring-blue-200",
+  };
+  return (
+    <div className={`flex items-center gap-2 rounded-lg px-4 py-2 ring-1 ${tones[tone]}`}>
+      <span className="text-xl font-bold">{count}{suffix}</span>
+      <span className="text-xs font-medium">{label}</span>
+    </div>
+  );
+}
 
 export function MyBids() {
-  const [bids, setBids] = useState<CarrierBid[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<Filter>("all");
+  const [bids, setBids]         = useState<CarrierBid[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [tab, setTab]           = useState<Tab>("pending");
+  const [selected, setSelected] = useState<CarrierBid | null>(null);
 
   useEffect(() => {
     if (!api) return;
-    api
-      .listMyBids()
-      .then(setBids)
-      .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load bids"))
+    api.listMyBids()
+      .then((b) => { setBids(b); if (b.length > 0) setSelected(b[0]); })
+      .catch(() => undefined)
       .finally(() => setLoading(false));
   }, []);
 
-  const rows = useMemo(
-    () => (filter === "all" ? bids : bids.filter((b) => b.status === filter)),
-    [bids, filter],
-  );
+  const pending = bids.filter((b) => b.status === "submitted");
+  const won     = bids.filter((b) => b.status === "accepted");
+  const lost    = bids.filter((b) => b.status === "rejected");
+  const shown   = tab === "pending" ? pending : tab === "won" ? won : lost;
 
-  const tabs = [
-    { id: "all", label: "All", count: bids.length },
-    { id: "submitted", label: "Pending", count: bids.filter((b) => b.status === "submitted").length },
-    { id: "accepted", label: "Won", count: bids.filter((b) => b.status === "accepted").length },
-    { id: "rejected", label: "Lost", count: bids.filter((b) => b.status === "rejected").length },
-  ];
+  const winRate = (won.length + lost.length) > 0
+    ? Math.round((won.length / (won.length + lost.length)) * 100) : null;
 
   return (
     <div className="space-y-5">
-      {error && (
-        <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">{error}</div>
-      )}
-      <Tabs variant="pill" items={tabs} active={filter} onChange={(id) => setFilter(id as Filter)} />
+      {/* Summary pills */}
+      <div className="flex flex-wrap gap-3">
+        <SummaryPill label="Pending" count={pending.length} tone="amber" />
+        <SummaryPill label="Won"     count={won.length}     tone="green" />
+        <SummaryPill label="Lost"    count={lost.length}    tone="slate" />
+        {winRate !== null && <SummaryPill label="Win rate" count={winRate} suffix="%" tone="blue" />}
+      </div>
 
-      <Card>
-        {loading ? (
-          <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-400">
-            <Loader2 size={16} className="animate-spin" /> Loading bids…
+      <div className="flex overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card">
+        {/* List pane */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="border-b border-slate-100 px-5 pt-4 pb-0">
+            <Tabs
+              variant="underline"
+              active={tab}
+              onChange={(t) => setTab(t as Tab)}
+              items={[
+                { id: "pending", label: `Pending (${pending.length})` },
+                { id: "won",     label: `Won (${won.length})`         },
+                { id: "lost",    label: `Lost (${lost.length})`       },
+              ]}
+            />
           </div>
-        ) : rows.length === 0 ? (
-          <EmptyState
-            icon={<Gavel size={22} />}
-            title={filter === "all" ? "No bids yet" : `No ${filter === "submitted" ? "pending" : filter} bids`}
-            description="Head to the Marketplace to quote on open loads."
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
-                  <th className="row-pad-y px-4 font-medium">Load</th>
-                  <th className="row-pad-y px-4 font-medium">Mode</th>
-                  <th className="row-pad-y px-4 font-medium">Submitted</th>
-                  <th className="row-pad-y px-4 font-medium">Transit</th>
-                  <th className="row-pad-y px-4 text-right font-medium">Your rate</th>
-                  <th className="row-pad-y px-4 font-medium">Outcome</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {rows.map((b) => (
-                  <tr key={b.id} className="transition hover:bg-slate-50">
-                    <td className="row-pad-y px-4 font-semibold text-slate-900">{b.reference}</td>
-                    <td className="row-pad-y px-4">
-                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                        {b.mode}
-                      </span>
-                    </td>
-                    <td className="row-pad-y px-4 text-slate-500">{formatDate(b.createdAt)}</td>
-                    <td className="row-pad-y px-4 text-slate-600">{b.transitDays}d</td>
-                    <td className="row-pad-y px-4 text-right font-medium text-slate-900">
-                      {formatCurrency(b.price.amount)}
-                    </td>
-                    <td className="row-pad-y px-4">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
-                          BID_TONE[b.status] ?? BID_TONE.withdrawn
-                        }`}
-                      >
-                        {b.status === "accepted" ? "won" : b.status === "rejected" ? "lost" : b.status}
-                        {b.quoteStatus === "open" && b.status === "submitted" ? " · auction open" : ""}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-20 text-sm text-slate-400">
+              <Loader2 size={16} className="animate-spin" /> Loading bids…
+            </div>
+          ) : shown.length === 0 ? (
+            <EmptyState
+              icon={<Gavel size={22} />}
+              title={`No ${tab} bids`}
+              description={tab === "pending" ? "Quote loads from the Marketplace to see bids here." : `No ${tab} bids yet.`}
+            />
+          ) : (
+            <div className="divide-y divide-slate-50 overflow-y-auto">
+              {shown.map((b) => {
+                const isWon  = b.status === "accepted";
+                const isLost = b.status === "rejected";
+                return (
+                  <button
+                    key={b.id}
+                    onClick={() => setSelected(b)}
+                    className={`flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-slate-50 ${selected?.id === b.id ? "bg-brand-50" : ""}`}
+                  >
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                      isWon ? "bg-emerald-100 text-emerald-600" :
+                      isLost ? "bg-slate-100 text-slate-400" :
+                      "bg-amber-100 text-amber-600"
+                    }`}>
+                      {isWon  ? <CheckCircle2 size={16} /> :
+                       isLost ? <XCircle      size={16} /> :
+                                <Clock        size={16} />}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-slate-900">{b.reference}</span>
+                        <Badge tone={b.mode === "Ocean" ? "blue" : b.mode === "Air" ? "amber" : "slate"} className="text-[10px]">
+                          {b.mode}
+                        </Badge>
+                      </div>
+                      <p className="mt-0.5 text-xs text-slate-400">
+                        {b.transitDays}d · {formatCurrency(b.price.amount)}
+                      </p>
+                    </div>
+                    <Badge tone={isWon ? "green" : isLost ? "slate" : "amber"}>
+                      {isWon ? "Won" : isLost ? "Lost" : "Pending"}
+                    </Badge>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Detail pane */}
+        {selected && <BidDetailPanel bid={selected} />}
+      </div>
     </div>
   );
 }

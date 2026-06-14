@@ -7,13 +7,16 @@ import { Logo } from "@/components/brand/Logo";
 import { useAuth } from "@/api/AuthContext";
 import { ApiError } from "@epl/sdk";
 
+const DEMO_EMAIL = "carrier@oceanflex.test";
+const DEMO_PASSWORD = "carrier123";
+
 type Mode = "login" | "register";
 
 export function Login() {
   const auth = useAuth();
   const [mode, setMode] = useState<Mode>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState(DEMO_EMAIL);
+  const [password, setPassword] = useState(DEMO_PASSWORD);
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [busy, setBusy] = useState(false);
@@ -107,6 +110,28 @@ export function Login() {
             >
               {busy ? <Loader2 size={16} className="animate-spin" /> : mode === "login" ? "Sign in" : "Create carrier account"}
             </Button>
+
+            {mode === "login" && (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="h-px flex-1 bg-slate-200" />
+                  <span className="text-xs text-slate-400">or</span>
+                  <div className="h-px flex-1 bg-slate-200" />
+                </div>
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  disabled={busy}
+                  onClick={() => run(() => auth.login(DEMO_EMAIL, DEMO_PASSWORD))}
+                >
+                  {busy ? <Loader2 size={16} className="animate-spin" /> : "Continue as Demo Carrier"}
+                </Button>
+                <p className="text-center text-xs text-slate-400">
+                  OceanFlex Lines demo account — no credentials needed
+                </p>
+              </>
+            )}
+
             {mode === "register" && (
               <p className="text-center text-xs text-slate-400">
                 Registers your company as a carrier — you can browse the marketplace and bid immediately.

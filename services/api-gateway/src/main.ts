@@ -28,8 +28,10 @@ async function bootstrap() {
   app.set("trust proxy", true);
   app.use(cookieParser());
 
+  const allowedOrigins = new Set(config.CORS_ORIGIN.split(",").map((o) => o.trim()));
   app.use((req, res, next) => {
-    res.header("Access-Control-Allow-Origin", config.CORS_ORIGIN);
+    const origin = req.headers.origin ?? "";
+    res.header("Access-Control-Allow-Origin", allowedOrigins.has(origin) ? origin : "");
     res.header("Access-Control-Allow-Credentials", "true");
     res.header("Access-Control-Allow-Headers", "authorization,content-type,x-correlation-id");
     res.header("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
