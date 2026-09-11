@@ -1,48 +1,51 @@
 # EPL Move
 
-Multi-sided logistics platform (Shipper, Carrier, Broker, Admin, Driver) built as a
-**pnpm + Turborepo monorepo** of TypeScript microservices, deployed to **GCP Cloud Run + Pub/Sub**.
+**EPL Move** is an AI-powered digital logistics platform designed to simplify, automate, and connect international freight transportation within a single ecosystem.
 
-> **Architecture is documented in [`docs/architecture/`](docs/architecture/)** — start with
-> [`01-overview.md`](docs/architecture/01-overview.md). Decisions are locked and approved; the code
-> is being built phase-by-phase per [`07-roadmap.md`](docs/architecture/07-roadmap.md).
-> The connected Shipper/Carrier/Broker workflow and local runbook are in
-> [`08-unified-portals.md`](docs/architecture/08-unified-portals.md).
+The platform connects **shippers, exporters, carriers, freight forwarders, dispatchers, drivers, and logistics partners**, enabling them to manage shipments from initial request to final delivery.
 
-## Layout
+EPL Move is being developed as a multi-modal logistics ecosystem supporting:
 
-```
-apps/        Frontend clients (web-shipper = the existing SPA; others later)
-services/    NestJS microservices (api-gateway, auth-svc, tenant-svc, load-svc, …)
-packages/    Shared TS: contracts (source of truth), auth, db, events, config, observability
-infra/       docker-compose (local), terraform (GCP), ci
-docs/        Architecture & design docs
-```
+* 🚛 Road Freight — FTL, curtain-side/tent and refrigerated transport
+* ✈️ Air Freight
+* 🚢 Ocean Freight
+* 🚆 Rail Freight
+* 📦 Multimodal Transportation
 
-## Prerequisites
-- Node 24 (`nvm use` — see `.nvmrc`)
-- pnpm 9 (`corepack enable`)
-- Docker (for local Postgres / Redis / Pub/Sub emulator)
+### Core Capabilities
 
-## Quick start
-```bash
-corepack enable
-pnpm install
-cp .env.example .env
+EPL Move is designed to provide:
 
-# start local deps (Postgres, Redis, Pub/Sub emulator)
-pnpm infra:up
+* AI-powered freight rate calculation and route optimization
+* Shipment creation and management
+* Carrier bidding and instant freight quotations
+* Load and carrier matching
+* Real-time shipment tracking
+* Dispatcher and driver management
+* Digital logistics documentation
+* CMR, POD, invoice and shipment document uploads
+* OCR and document data extraction
+* Multilingual logistics workflows
+* Customer–carrier–dispatcher communication
+* Automated notifications and shipment status updates
+* Accounting and payment management
+* Partner and agent network management
+* Data-driven logistics analytics
 
-# run everything in watch mode
-pnpm dev
-# or just the shipper SPA:
-pnpm dev:shipper
-```
+### EPL Genius
 
-## Status
+**EPL Genius** is the AI intelligence layer of EPL Move.
 
-The Shipper, Carrier, and Customs Broker portals are connected through the API
-gateway and shared persistent service schemas. Set `VITE_API_URL` in each portal
-to use live identity, loads, bids, bookings, shipments, document requests,
-messages, notifications, and tracking data. Some secondary analytics and admin
-screens still use presentation fixtures where no analytics aggregate exists.
+It is designed to assist users with freight quotations, route selection, transportation planning, carrier matching, logistics documentation, shipment analysis, and operational decision-making.
+
+### Vision
+
+Our goal is to build a unified digital infrastructure for global logistics where companies can:
+
+**Request → Quote → Match → Book → Transport → Track → Document → Pay**
+
+within one intelligent platform.
+
+EPL Move initially focuses on trade corridors connecting **Central Asia, China, CIS, Europe, Türkiye, the Caucasus, the Middle East, and global markets**.
+
+**EPL Move — Connecting Cargo. Connecting Markets. Connecting the World.**
