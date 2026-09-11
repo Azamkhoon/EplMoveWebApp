@@ -10,10 +10,17 @@ import { Dimensions, EquipmentKind, Location, Money, RoadServiceLevel, Transport
 export const LoadStatus = z.enum([
   "draft",
   "posted",
+  "open_for_bids",
+  "bid_received",
+  "carrier_selected",
   "booked",
+  "pickup_scheduled",
+  "picked_up",
   "in_transit",
+  "customs",
   "delayed",
   "delivered",
+  "completed",
   "cancelled",
 ]);
 export type LoadStatus = z.infer<typeof LoadStatus>;
@@ -21,11 +28,18 @@ export type LoadStatus = z.infer<typeof LoadStatus>;
 /** Legal status transitions. Source of truth for load-svc's state machine. */
 export const LOAD_TRANSITIONS: Record<LoadStatus, LoadStatus[]> = {
   draft: ["posted", "cancelled"],
-  posted: ["booked", "draft", "cancelled"],
-  booked: ["in_transit", "cancelled"],
-  in_transit: ["delivered", "delayed"],
-  delayed: ["in_transit", "delivered"],
-  delivered: [],
+  posted: ["open_for_bids", "bid_received", "carrier_selected", "booked", "draft", "cancelled"],
+  open_for_bids: ["bid_received", "carrier_selected", "cancelled"],
+  bid_received: ["carrier_selected", "open_for_bids", "cancelled"],
+  carrier_selected: ["booked", "cancelled"],
+  booked: ["pickup_scheduled", "picked_up", "in_transit", "cancelled"],
+  pickup_scheduled: ["picked_up", "cancelled"],
+  picked_up: ["in_transit", "customs", "cancelled"],
+  in_transit: ["customs", "delivered", "delayed"],
+  customs: ["in_transit", "delivered", "delayed"],
+  delayed: ["in_transit", "customs", "delivered"],
+  delivered: ["completed"],
+  completed: [],
   cancelled: [],
 };
 
@@ -47,14 +61,26 @@ export const LoadDetails = z.object({
   equipmentKind: EquipmentKind.optional(),
   equipmentCode: z.string().optional(), // e.g. "40hc", "tautliner", "flatwagon"
   commodity: z.string().min(1),
+  cargoDescription: z.string().max(4000).optional(),
   pickup: Location,
   delivery: Location,
   weightKg: z.number().positive(),
   volumeM3: z.number().positive(),
   pieces: z.number().int().positive().optional(),
+  dimensions: Dimensions.optional(),
   value: Money.optional(),
   readyDate: z.string().datetime().optional(),
+  requiredDeliveryDate: z.string().datetime().optional(),
   incoterm: z.string().optional(),
+  truckType: z.string().optional(),
+  trailerType: z.string().optional(),
+  temperature: z
+    .object({ minC: z.number().optional(), maxC: z.number().optional() })
+    .optional(),
+  customsInfo: z.string().max(4000).optional(),
+  dangerousGoods: z.boolean().default(false),
+  specialInstructions: z.string().max(4000).optional(),
+  requiredDocuments: z.array(z.string()).default([]),
   notes: z.string().max(2000).optional(),
   items: z.array(LoadItem).optional(),
 });

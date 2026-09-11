@@ -7,6 +7,10 @@ import {
 } from "react";
 import { api, LIVE, restoreToken } from "./client";
 
+const DEMO_EMAIL    = "carrier@oceanflex.test";
+const DEMO_PASSWORD = "carrier123";
+const MOCK_KEY      = "epl-carrier-mock-authed";
+
 interface AuthState {
   live: boolean;
   authed: boolean;
@@ -18,6 +22,11 @@ interface AuthState {
     password: string;
     name: string;
     tenantName: string;
+    vatNumber: string;
+    country: string;
+    city: string;
+    address: string;
+    phone: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -29,7 +38,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(LIVE);
 
   useEffect(() => {
-    if (!LIVE || !api) return;
+    if (sessionStorage.getItem(MOCK_KEY)) { setAuthed(true); setLoading(false); return; }
+    if (!LIVE || !api) { setLoading(false); return; }
     restoreToken();
     api
       .refresh()
@@ -42,15 +52,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authed,
     loading,
     async login(email, password, tenantSlug) {
+      // Demo shortcut — works even when backend is offline
+      if (!LIVE && email === DEMO_EMAIL && password === DEMO_PASSWORD) {
+        sessionStorage.setItem(MOCK_KEY, "1");
+        setAuthed(true);
+        return;
+      }
       await api!.login({ email, password, tenantSlug });
       setAuthed(true);
     },
     async register(input) {
-      await api!.register({ ...input, kind: "carrier" });
+      await api!.register({
+        ...input,
+        kind: "carrier",
+      });
       setAuthed(true);
     },
     async logout() {
-      await api!.logout();
+      sessionStorage.removeItem(MOCK_KEY);
+      await api?.logout();
       setAuthed(false);
     },
   };

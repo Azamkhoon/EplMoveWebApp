@@ -13,8 +13,9 @@ const schema = baseEnvSchema.extend({
   PUBSUB_PROJECT_ID: z.string().default("epl-move-local"),
   OUTBOX_RELAY_MS: z.coerce.number().default(2000),
   CARRIER_SVC_URL: z.string().default("http://localhost:8084"),
+  LOAD_SVC_URL: z.string().default("http://localhost:8083"),
   // Auto-generate demo bids when a quote opens (Phase 2 demo aid).
-  AUTO_BID: z.coerce.boolean().default(true),
+  AUTO_BID: z.coerce.boolean().default(false),
 });
 
 export type AppConfig = z.infer<typeof schema>;

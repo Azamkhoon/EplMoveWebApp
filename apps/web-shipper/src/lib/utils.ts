@@ -43,16 +43,21 @@ export function formatDateTime(iso: string) {
   });
 }
 
-export function relativeTime(iso: string) {
+export function relativeTime(iso: string, locale = "en") {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.round(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  if (mins < 1) return formatter.format(0, "minute");
+  if (mins < 60) return formatter.format(-mins, "minute");
   const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return formatter.format(-hours, "hour");
   const days = Math.round(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return formatDate(iso);
+  if (days < 7) return formatter.format(-days, "day");
+  return new Date(iso).toLocaleDateString(locale, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export const STATUS_META: Record<
@@ -80,6 +85,15 @@ export const STATUS_META: Record<
     bg: "bg-indigo-50",
     ring: "ring-indigo-200",
   },
+  carrier_selected: {
+    label: "Carrier Selected", dot: "bg-violet-500", text: "text-violet-700", bg: "bg-violet-50", ring: "ring-violet-200",
+  },
+  pickup_scheduled: {
+    label: "Pickup Scheduled", dot: "bg-amber-500", text: "text-amber-700", bg: "bg-amber-50", ring: "ring-amber-200",
+  },
+  picked_up: {
+    label: "Picked Up", dot: "bg-amber-500", text: "text-amber-700", bg: "bg-amber-50", ring: "ring-amber-200",
+  },
   cancelled: {
     label: "Cancelled",
     dot: "bg-slate-400",
@@ -94,6 +108,9 @@ export const STATUS_META: Record<
     bg: "bg-amber-50",
     ring: "ring-amber-200",
   },
+  customs: {
+    label: "Customs", dot: "bg-violet-500", text: "text-violet-700", bg: "bg-violet-50", ring: "ring-violet-200",
+  },
   delivered: {
     label: "Delivered",
     dot: "bg-emerald-500",
@@ -107,6 +124,9 @@ export const STATUS_META: Record<
     text: "text-red-700",
     bg: "bg-red-50",
     ring: "ring-red-200",
+  },
+  completed: {
+    label: "Completed", dot: "bg-emerald-600", text: "text-emerald-700", bg: "bg-emerald-50", ring: "ring-emerald-200",
   },
 };
 

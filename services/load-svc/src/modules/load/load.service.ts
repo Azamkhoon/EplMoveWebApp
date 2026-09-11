@@ -62,14 +62,26 @@ export class LoadService {
       equipmentKind: r.equipment_kind ?? undefined,
       equipmentCode: r.equipment_code ?? undefined,
       commodity: r.commodity,
+      cargoDescription: r.cargo_description ?? undefined,
       pickup: r.pickup,
       delivery: r.delivery,
       weightKg: Number(r.weight_kg),
       volumeM3: Number(r.volume_m3),
       pieces: r.pieces ?? undefined,
+      dimensions: r.dimensions ?? undefined,
       value: r.value ?? undefined,
       readyDate: r.ready_date ? new Date(r.ready_date as string).toISOString() : undefined,
+      requiredDeliveryDate: r.required_delivery_date
+        ? new Date(r.required_delivery_date as string).toISOString()
+        : undefined,
       incoterm: r.incoterm ?? undefined,
+      truckType: r.truck_type ?? undefined,
+      trailerType: r.trailer_type ?? undefined,
+      temperature: r.temperature ?? undefined,
+      customsInfo: r.customs_info ?? undefined,
+      dangerousGoods: Boolean(r.dangerous_goods),
+      specialInstructions: r.special_instructions ?? undefined,
+      requiredDocuments: r.required_documents ?? [],
       notes: r.notes ?? undefined,
       items: r.items ?? undefined,
       createdBy: r.created_by,
@@ -79,15 +91,12 @@ export class LoadService {
     });
   }
 
-  private async nextReference(c: PoolClient, tenantId: string): Promise<string> {
+  private async nextReference(c: PoolClient): Promise<string> {
     const { rows } = await c.query<{ last_value: number }>(
-      `INSERT INTO load.reference_seq (tenant_id, last_value) VALUES ($1, 1)
-       ON CONFLICT (tenant_id) DO UPDATE SET last_value = load.reference_seq.last_value + 1
-       RETURNING last_value`,
-      [tenantId],
+      `SELECT nextval('load.reference_number_seq')::int AS last_value`,
     );
     const n = rows[0]!.last_value;
-    return `EPL-${new Date().getFullYear()}-${String(n).padStart(4, "0")}`;
+    return `EPL-LOAD-${String(n).padStart(6, "0")}`;
   }
 
   // ── Create (post or draft) ──
@@ -96,20 +105,28 @@ export class LoadService {
     const status: LoadStatus = input.asDraft ? "draft" : "posted";
 
     return this.tx(ctx.tenantId, async (c) => {
-      const reference = await this.nextReference(c, ctx.tenantId);
+      const reference = await this.nextReference(c);
       const { rows } = await c.query(
         `INSERT INTO load.loads
           (tenant_id, reference, status, mode, service_level, equipment_kind, equipment_code,
-           commodity, pickup, delivery, weight_kg, volume_m3, pieces, value, ready_date,
-           incoterm, notes, items, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+           commodity, cargo_description, pickup, delivery, weight_kg, volume_m3, pieces,
+           dimensions, value, ready_date, required_delivery_date, incoterm, truck_type,
+           trailer_type, temperature, customs_info, dangerous_goods, special_instructions,
+           required_documents, notes, items, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
+                 $20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
          RETURNING *`,
         [
           ctx.tenantId, reference, status, input.mode, input.serviceLevel ?? null,
           input.equipmentKind ?? null, input.equipmentCode ?? null, input.commodity,
-          JSON.stringify(input.pickup), JSON.stringify(input.delivery), input.weightKg,
-          input.volumeM3, input.pieces ?? null, input.value ? JSON.stringify(input.value) : null,
-          input.readyDate ?? null, input.incoterm ?? null, input.notes ?? null,
+          input.cargoDescription ?? null, JSON.stringify(input.pickup), JSON.stringify(input.delivery),
+          input.weightKg, input.volumeM3, input.pieces ?? null,
+          input.dimensions ? JSON.stringify(input.dimensions) : null,
+          input.value ? JSON.stringify(input.value) : null, input.readyDate ?? null,
+          input.requiredDeliveryDate ?? null, input.incoterm ?? null, input.truckType ?? null,
+          input.trailerType ?? null, input.temperature ? JSON.stringify(input.temperature) : null,
+          input.customsInfo ?? null, input.dangerousGoods, input.specialInstructions ?? null,
+          JSON.stringify(input.requiredDocuments), input.notes ?? null,
           input.items ? JSON.stringify(input.items) : null, ctx.userId,
         ],
       );
@@ -159,7 +176,7 @@ export class LoadService {
         throw new ConflictException("version conflict — reload and retry");
       }
       // Only draft/posted loads are editable.
-      if (!["draft", "posted"].includes(existing.status)) {
+      if (!["draft", "posted", "open_for_bids"].includes(existing.status)) {
         throw new ConflictException(`cannot edit a ${existing.status} load`);
       }
 
@@ -167,16 +184,26 @@ export class LoadService {
       const { rows } = await c.query(
         `UPDATE load.loads SET
            mode=$2, service_level=$3, equipment_kind=$4, equipment_code=$5, commodity=$6,
-           pickup=$7, delivery=$8, weight_kg=$9, volume_m3=$10, pieces=$11, value=$12,
-           ready_date=$13, incoterm=$14, notes=$15, items=$16,
+           cargo_description=$7, pickup=$8, delivery=$9, weight_kg=$10, volume_m3=$11,
+           pieces=$12, dimensions=$13, value=$14, ready_date=$15,
+           required_delivery_date=$16, incoterm=$17, truck_type=$18, trailer_type=$19,
+           temperature=$20, customs_info=$21, dangerous_goods=$22,
+           special_instructions=$23, required_documents=$24, notes=$25, items=$26,
            updated_at=now(), version = version + 1
          WHERE id=$1 RETURNING *`,
         [
           id, merged.mode, merged.serviceLevel ?? null, merged.equipmentKind ?? null,
-          merged.equipmentCode ?? null, merged.commodity, JSON.stringify(merged.pickup),
-          JSON.stringify(merged.delivery), merged.weightKg, merged.volumeM3,
-          merged.pieces ?? null, merged.value ? JSON.stringify(merged.value) : null,
-          merged.readyDate ?? null, merged.incoterm ?? null, merged.notes ?? null,
+          merged.equipmentCode ?? null, merged.commodity, merged.cargoDescription ?? null,
+          JSON.stringify(merged.pickup), JSON.stringify(merged.delivery), merged.weightKg,
+          merged.volumeM3, merged.pieces ?? null,
+          merged.dimensions ? JSON.stringify(merged.dimensions) : null,
+          merged.value ? JSON.stringify(merged.value) : null, merged.readyDate ?? null,
+          merged.requiredDeliveryDate ?? null, merged.incoterm ?? null,
+          merged.truckType ?? null, merged.trailerType ?? null,
+          merged.temperature ? JSON.stringify(merged.temperature) : null,
+          merged.customsInfo ?? null, merged.dangerousGoods,
+          merged.specialInstructions ?? null, JSON.stringify(merged.requiredDocuments),
+          merged.notes ?? null,
           merged.items ? JSON.stringify(merged.items) : null,
         ],
       );
@@ -226,14 +253,24 @@ export class LoadService {
       equipmentKind: src.equipmentKind,
       equipmentCode: src.equipmentCode,
       commodity: src.commodity,
+      cargoDescription: src.cargoDescription,
       pickup: src.pickup,
       delivery: src.delivery,
       weightKg: src.weightKg,
       volumeM3: src.volumeM3,
       pieces: src.pieces,
+      dimensions: src.dimensions,
       value: src.value,
       readyDate: src.readyDate,
+      requiredDeliveryDate: src.requiredDeliveryDate,
       incoterm: src.incoterm,
+      truckType: src.truckType,
+      trailerType: src.trailerType,
+      temperature: src.temperature,
+      customsInfo: src.customsInfo,
+      dangerousGoods: src.dangerousGoods,
+      specialInstructions: src.specialInstructions,
+      requiredDocuments: src.requiredDocuments,
       notes: src.notes,
       items: src.items,
       asDraft: true,

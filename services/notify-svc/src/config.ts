@@ -11,6 +11,8 @@ const schema = baseEnvSchema.extend({
   DB_NAME: z.string().default("epl_move"),
   DB_SCHEMA: z.string().default("notify"),
   PUBSUB_PROJECT_ID: z.string().default("epl-move-local"),
+  TENANT_SVC_URL: z.string().default("http://localhost:8082"),
+  JWT_PUBLIC_KEY: z.string().min(1),
   // Delivery channels are pluggable; when unset, notifications are persisted
   // and logged only (the in-app inbox). Email/SMS/push providers slot in here.
   EMAIL_PROVIDER_URL: z.string().optional(),

@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException, ConflictException } from "@nestjs/common";
 import { Pool } from "pg";
 import { config } from "../../config";
-import { DEFAULT_ADMIN_ROLE, CARRIER_ADMIN_ROLE } from "../../db/seed";
+import { BROKER_ADMIN_ROLE, CARRIER_ADMIN_ROLE, DEFAULT_ADMIN_ROLE } from "../../db/seed";
 
-export type TenantKind = "shipper" | "carrier";
+export type TenantKind = "shipper" | "carrier" | "broker";
 
 export interface ResolvedMembership {
   tenantId: string;
@@ -31,12 +31,26 @@ export class TenantService {
   });
 
   /** Create a tenant and make `userId` its admin. Called by auth-svc on register. */
-  async provisionTenant(
-    userId: string,
-    tenantName: string,
-    kind: TenantKind = "shipper",
-  ): Promise<ResolvedMembership> {
-    const adminRole = kind === "carrier" ? CARRIER_ADMIN_ROLE : DEFAULT_ADMIN_ROLE;
+  async provisionTenant(input: {
+    userId: string;
+    tenantName: string;
+    vatNumber: string;
+    country: string;
+    city: string;
+    address: string;
+    phone: string;
+    email: string;
+    kind?: TenantKind;
+    companyVerified: boolean;
+  }): Promise<ResolvedMembership> {
+    const { userId, tenantName } = input;
+    const kind = input.kind ?? "shipper";
+    const adminRole =
+      kind === "carrier"
+        ? CARRIER_ADMIN_ROLE
+        : kind === "broker"
+          ? BROKER_ADMIN_ROLE
+          : DEFAULT_ADMIN_ROLE;
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
@@ -54,8 +68,23 @@ export class TenantService {
       }
 
       const { rows: tRows } = await client.query<{ id: string }>(
-        "INSERT INTO tenant.tenants (name, slug, kind) VALUES ($1, $2, $3) RETURNING id",
-        [tenantName, slug, kind],
+        `INSERT INTO tenant.tenants
+           (name, slug, kind, vat_number, country, city, address, email, phone, company_verified_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+           CASE WHEN $10 THEN now() ELSE NULL END)
+         RETURNING id`,
+        [
+          tenantName,
+          slug,
+          kind,
+          input.vatNumber,
+          input.country,
+          input.city,
+          input.address,
+          input.email.toLowerCase(),
+          input.phone,
+          input.companyVerified,
+        ],
       );
       const tenantId = tRows[0]!.id;
 
@@ -102,12 +131,19 @@ export class TenantService {
   }
 
   /** Resolve a user's active membership (by slug, or first membership). */
-  async resolveMembership(userId: string, tenantSlug?: string): Promise<ResolvedMembership> {
+  async resolveMembership(
+    userId: string,
+    tenantSlug?: string,
+    tenantId?: string,
+  ): Promise<ResolvedMembership> {
     const params: unknown[] = [userId];
     let where = "m.user_id = $1 AND m.status = 'active'";
     if (tenantSlug) {
       params.push(tenantSlug);
       where += " AND t.slug = $2";
+    } else if (tenantId) {
+      params.push(tenantId);
+      where += " AND t.id = $2";
     }
     const { rows } = await this.pool.query<{
       tenant_id: string;
@@ -146,6 +182,29 @@ export class TenantService {
         ORDER BY t.created_at DESC`,
     );
     return rows.map((r) => ({ ...r, memberCount: Number(r.member_count) }));
+  }
+
+  async listTenantsByKind(kind?: TenantKind) {
+    const params: unknown[] = [];
+    let where = "WHERE status='active'";
+    if (kind) {
+      params.push(kind);
+      where += " AND kind=$1";
+    }
+    const { rows } = await this.pool.query(
+      `SELECT id, name, slug, kind, country, city FROM tenant.tenants ${where} ORDER BY name`,
+      params,
+    );
+    return rows;
+  }
+
+  async getTenant(id: string) {
+    const { rows } = await this.pool.query(
+      `SELECT id, name, slug, kind, country, city FROM tenant.tenants WHERE id=$1 AND status='active'`,
+      [id],
+    );
+    if (!rows[0]) throw new NotFoundException("tenant not found");
+    return rows[0];
   }
 
   async listMemberships(tenantId?: string) {

@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle2, Clock, FileText, TrendingUp, type LucideIc
 import { cn, formatCurrency, formatDate, relativeTime } from "@/lib/utils";
 import { DECLARATIONS, SHIPMENTS_PENDING } from "@/data/mock";
 import type { Declaration } from "@/types";
+import { useI18n } from "@/i18n/LanguageContext";
 
 const STATUS_COLORS: Record<Declaration["status"], string> = {
   draft:         "bg-slate-100 text-slate-600",
@@ -34,6 +35,7 @@ const ALERTS = [
 ];
 
 export function Dashboard() {
+  const { t } = useI18n();
   const pending      = DECLARATIONS.filter((d) => ["submitted","under_review","docs_requested"].includes(d.status));
   const docsNeeded   = DECLARATIONS.filter((d) => d.status === "docs_requested");
   const approved     = DECLARATIONS.filter((d) => ["approved","released"].includes(d.status));
@@ -44,18 +46,18 @@ export function Dashboard() {
     <div className="space-y-6">
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard icon={FileText} iconCls="text-blue-600 bg-blue-50" label="Pending Review" value={pending.length} sub="declarations" />
-        <KpiCard icon={AlertTriangle} iconCls="text-orange-600 bg-orange-50" label="Docs Requested" value={docsNeeded.length} sub="awaiting documents" urgent />
-        <KpiCard icon={CheckCircle2} iconCls="text-emerald-600 bg-emerald-50" label="Approved / Released" value={approved.length} sub="this month" />
-        <KpiCard icon={Clock} iconCls="text-red-600 bg-red-50" label="Deadline Today" value={dueSoon.length} sub="declarations" urgent={dueSoon.length > 0} />
+        <KpiCard icon={FileText} iconCls="text-blue-600 bg-blue-50" label={t("status.review")} value={pending.length} sub={t("nav.declarations")} />
+        <KpiCard icon={AlertTriangle} iconCls="text-orange-600 bg-orange-50" label={t("dashboard.pendingDocuments")} value={docsNeeded.length} sub={t("dashboard.requireAttention")} urgent />
+        <KpiCard icon={CheckCircle2} iconCls="text-emerald-600 bg-emerald-50" label={t("status.approved")} value={approved.length} sub={t("dashboard.thisMonth")} />
+        <KpiCard icon={Clock} iconCls="text-red-600 bg-red-50" label={t("dashboard.upcomingDeadlines")} value={dueSoon.length} sub={t("nav.declarations")} urgent={dueSoon.length > 0} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Active declarations */}
         <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <h2 className="font-semibold text-slate-800">Active Declarations</h2>
-            <a href="/declarations" className="text-xs font-medium text-teal-600 hover:underline">View all</a>
+            <h2 className="font-semibold text-slate-800">{t("dashboard.activeDeclarations")}</h2>
+            <a href="/declarations" className="text-xs font-medium text-teal-600 hover:underline">{t("dashboard.viewAll")}</a>
           </div>
           <div className="divide-y divide-slate-50">
             {DECLARATIONS.filter((d) => !["closed","released"].includes(d.status)).map((dec) => (
@@ -89,7 +91,7 @@ export function Dashboard() {
           {/* Alerts */}
           <div className="rounded-xl border border-slate-200 bg-white">
             <div className="border-b border-slate-100 px-5 py-4">
-              <h2 className="font-semibold text-slate-800">Alerts</h2>
+              <h2 className="font-semibold text-slate-800">{t("dashboard.upcomingDeadlines")}</h2>
             </div>
             <div className="divide-y divide-slate-50">
               {ALERTS.map((a) => (
@@ -107,7 +109,7 @@ export function Dashboard() {
           {/* Revenue mini chart */}
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <div className="mb-1 flex items-baseline justify-between">
-              <h2 className="font-semibold text-slate-800">Revenue</h2>
+              <h2 className="font-semibold text-slate-800">{t("dashboard.revenue")}</h2>
               <TrendingUp size={14} className="text-teal-500" />
             </div>
             <p className="mb-4 text-2xl font-bold text-slate-900">{formatCurrency(69000, "USD")}</p>
@@ -129,14 +131,14 @@ export function Dashboard() {
       {/* Incoming shipments */}
       <div className="rounded-xl border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <h2 className="font-semibold text-slate-800">Incoming Shipments Awaiting Clearance</h2>
-          <a href="/shipments" className="text-xs font-medium text-teal-600 hover:underline">View all</a>
+          <h2 className="font-semibold text-slate-800">{t("page.shipments.subtitle")}</h2>
+          <a href="/shipments" className="text-xs font-medium text-teal-600 hover:underline">{t("dashboard.viewAll")}</a>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100">
-                {["Ref", "Client", "Route", "Mode", "Cargo", "Value", "ETA", "Action"].map((h) => (
+                {[t("common.reference"), t("common.client"), "Route", t("shipments.mode"), t("shipments.cargo"), t("declarations.value"), t("shipments.eta"), t("common.actions")].map((h) => (
                   <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-slate-500">{h}</th>
                 ))}
               </tr>
@@ -153,7 +155,7 @@ export function Dashboard() {
                   <td className="px-5 py-3 text-xs text-slate-600">{formatDate(s.eta)}</td>
                   <td className="px-5 py-3">
                     <button className="rounded-md bg-teal-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-teal-700">
-                      Start clearance
+                      {t("shipments.assign")}
                     </button>
                   </td>
                 </tr>

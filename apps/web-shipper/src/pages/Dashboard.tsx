@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Area,
   AreaChart,
@@ -20,7 +20,6 @@ import {
   Boxes,
   CircleDollarSign,
   Clock,
-  MapPin,
   Truck,
 } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -43,11 +42,12 @@ import { toViewShipment } from "@/data/live-adapters";
 import { useEffect, useState } from "react";
 import { formatCompact, formatCurrency, relativeTime } from "@/lib/utils";
 import type { Shipment as ViewShipment } from "@/types";
+import { useI18n } from "@/i18n/LanguageContext";
 
 const DONUT_COLORS = ["#1d4ed8", "#3b82f6", "#60a9fa", "#93bbfd", "#bfd6fe"];
 
 export function Dashboard() {
-  const navigate = useNavigate();
+  const { lang, t } = useI18n();
 
   // Live KPIs/activity/map come from real shipments + invoices; the historical
   // trend charts below stay on sample analytics (no time-series service yet).
@@ -56,7 +56,7 @@ export function Dashboard() {
 
   useEffect(() => {
     if (!LIVE || !api) return;
-    api.listShipments().then((l) => setLiveShipments(l.map(toViewShipment))).catch(() => setLiveShipments([]));
+    api.listShipments().then((list) => setLiveShipments(list.map((shipment) => toViewShipment(shipment)))).catch(() => setLiveShipments([]));
     api.listInvoices().then((inv) => setLiveSpend(inv.reduce((s, i) => s + i.amount.amount, 0))).catch(() => setLiveSpend(0));
   }, []);
 
@@ -95,7 +95,7 @@ export function Dashboard() {
       point: s.origin,
       kind: "load",
       label: s.reference,
-      sublabel: `Awaiting pickup · ${s.origin.city}`,
+      sublabel: `${t("dashboard.awaitingPickup")} · ${s.origin.city}`,
     });
   });
 
@@ -121,37 +121,37 @@ export function Dashboard() {
       {/* KPI row */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Active shipments"
+          label={t("dashboard.active")}
           value={active.length}
           icon={<Boxes size={18} />}
           trend={8}
           accent="brand"
-          hint={`${openQuotes.length} awaiting carrier`}
+          hint={`${openQuotes.length} ${t("dashboard.awaitingCarrier")}`}
         />
         <StatCard
-          label="In transit"
+          label={t("dashboard.inTransit")}
           value={inTransit.length}
           icon={<Truck size={18} />}
           trend={3}
           accent="amber"
-          hint={`${shipmentsData.filter((s) => s.status === "delayed").length} delayed`}
+          hint={`${shipmentsData.filter((s) => s.status === "delayed").length} ${t("dashboard.delayed")}`}
         />
         <StatCard
-          label={LIVE ? "Delivered" : "Delivered (90d)"}
+          label={LIVE ? t("shipments.delivered") : t("dashboard.delivered90")}
           value={LIVE ? delivered.length : delivered.length + 61}
           icon={<Clock size={18} />}
           trend={12}
           accent="emerald"
-          hint={`${ON_TIME_RATE}% on-time`}
+          hint={`${ON_TIME_RATE}% ${t("dashboard.onTime")}`}
         />
         <StatCard
-          label="Logistics spend"
+          label={t("dashboard.spend")}
           value={totalSpend}
           format={(n) => formatCurrency(n)}
           icon={<CircleDollarSign size={18} />}
           trend={-4}
           accent="navy"
-          hint="vs. prior period"
+          hint={t("dashboard.priorPeriod")}
         />
       </div>
 
@@ -159,13 +159,16 @@ export function Dashboard() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader
-            title="Live load positions"
-            subtitle={`${markers.length} loads on the map · ${inTransit.length} moving`}
+            title={t("dashboard.livePositions")}
+            subtitle={`${markers.length} ${t("dashboard.loadsOnMap")} · ${inTransit.length} ${t("dashboard.moving")}`}
             action={
-              <Button variant="outline" size="sm" onClick={() => navigate("/tracking")}>
-                <MapPin size={14} />
-                Open tracking
-              </Button>
+              inTransit.length > 0 ? (
+                <Link to="/tracking">
+                  <Button variant="outline" size="sm">
+                    {t("dashboard.openTracking")}
+                  </Button>
+                </Link>
+              ) : undefined
             }
           />
           <div className="p-2">
@@ -180,13 +183,13 @@ export function Dashboard() {
 
         <Card className="flex flex-col">
           <CardHeader
-            title="Recent activity"
+            title={t("dashboard.recentActivity")}
             action={
               <Link
                 to="/shipments"
                 className="text-xs font-medium text-brand-600 hover:text-brand-700"
               >
-                View all
+                {t("dashboard.viewAll")}
               </Link>
             }
           />
@@ -209,7 +212,7 @@ export function Dashboard() {
                   </p>
                 </div>
                 <span className="whitespace-nowrap text-xs text-slate-400">
-                  {relativeTime(a.at)}
+                  {relativeTime(a.at, lang)}
                 </span>
               </Link>
             ))}
@@ -221,15 +224,15 @@ export function Dashboard() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader
-            title="Shipment volume & spend"
-            subtitle="Last 6 months"
+            title={t("dashboard.volumeSpend")}
+            subtitle={t("dashboard.last6Months")}
             action={
               <div className="flex items-center gap-4 text-xs">
                 <span className="flex items-center gap-1.5 text-slate-500">
-                  <span className="h-2 w-2 rounded-full bg-brand-500" /> Shipments
+                  <span className="h-2 w-2 rounded-full bg-brand-500" /> {t("dashboard.shipments")}
                 </span>
                 <span className="flex items-center gap-1.5 text-slate-500">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" /> Spend
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" /> {t("dashboard.spendShort")}
                 </span>
               </div>
             }
@@ -272,7 +275,9 @@ export function Dashboard() {
                     fontSize: 13,
                   }}
                   formatter={(v: number, n) =>
-                    n === "spend" ? [formatCurrency(v), "Spend"] : [v, "Shipments"]
+                    n === "spend"
+                      ? [formatCurrency(v), t("dashboard.spendShort")]
+                      : [v, t("dashboard.shipments")]
                   }
                 />
                 <Area
@@ -297,7 +302,7 @@ export function Dashboard() {
         </Card>
 
         <Card>
-          <CardHeader title="Spend by mode" subtitle="Share of logistics cost" />
+          <CardHeader title={t("dashboard.spendByMode")} subtitle={t("dashboard.costShare")} />
           <CardBody>
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
@@ -338,7 +343,7 @@ export function Dashboard() {
       {/* Weekly volume + on-time + lanes */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card>
-          <CardHeader title="Weekly volume" subtitle="Inbound vs outbound" />
+          <CardHeader title={t("dashboard.weeklyVolume")} subtitle={t("dashboard.inboundOutbound")} />
           <CardBody>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={WEEKLY_VOLUME} margin={{ left: -16, right: 8 }}>
@@ -366,7 +371,7 @@ export function Dashboard() {
         </Card>
 
         <Card>
-          <CardHeader title="On-time performance" />
+          <CardHeader title={t("dashboard.onTimePerformance")} />
           <CardBody className="flex flex-col items-center justify-center">
             <div className="relative flex h-36 w-36 items-center justify-center">
               <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
@@ -384,17 +389,17 @@ export function Dashboard() {
               </svg>
               <div className="absolute text-center">
                 <p className="text-2xl font-bold text-slate-900">{ON_TIME_RATE}%</p>
-                <p className="text-xs text-slate-500">on-time</p>
+                <p className="text-xs text-slate-500">{t("dashboard.onTime")}</p>
               </div>
             </div>
             <div className="mt-4 grid w-full grid-cols-2 gap-3 text-center">
               <div className="rounded-lg bg-slate-50 py-2">
                 <p className="text-lg font-bold text-slate-900">{AVG_TRANSIT_DAYS}d</p>
-                <p className="text-xs text-slate-500">avg transit</p>
+                <p className="text-xs text-slate-500">{t("dashboard.avgTransit")}</p>
               </div>
               <div className="rounded-lg bg-slate-50 py-2">
                 <p className="text-lg font-bold text-slate-900">1.2%</p>
-                <p className="text-xs text-slate-500">exception rate</p>
+                <p className="text-xs text-slate-500">{t("dashboard.exceptionRate")}</p>
               </div>
             </div>
           </CardBody>
@@ -402,8 +407,8 @@ export function Dashboard() {
 
         <Card>
           <CardHeader
-            title="Top lanes"
-            subtitle="By volume"
+            title={t("dashboard.topLanes")}
+            subtitle={t("dashboard.byVolume")}
             action={<ArrowUpRight size={16} className="text-slate-300" />}
           />
           <CardBody className="space-y-3.5">
@@ -411,7 +416,7 @@ export function Dashboard() {
               <div key={lane.lane}>
                 <div className="mb-1 flex items-center justify-between text-xs">
                   <span className="font-medium text-slate-700">{lane.lane}</span>
-                  <span className="text-slate-400">{lane.volume} loads</span>
+                  <span className="text-slate-400">{lane.volume} {t("dashboard.loads")}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <ProgressBar

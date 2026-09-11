@@ -12,21 +12,30 @@ import { Financials }  from "@/pages/Financials";
 import { Analytics }   from "@/pages/Analytics";
 import { Login }       from "@/pages/Login";
 import { useAuth }     from "@/api/AuthContext";
+import { PortalSwitcher } from "@/components/ui/PortalSwitcher";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { useI18n } from "@/i18n/LanguageContext";
 
 export default function App() {
   const auth = useAuth();
+  const { t } = useI18n();
 
   if (!auth.live) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-100 p-6 text-center">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-100 p-6 text-center">
         <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-slate-400 shadow-card">
           <PlugZap size={22} />
         </span>
-        <p className="text-sm font-semibold text-slate-700">Backend not configured</p>
+        <div className="absolute right-5 top-5">
+          <LanguageSwitcher />
+        </div>
+        <p className="text-sm font-semibold text-slate-700">{t("app.backendTitle")}</p>
         <p className="max-w-sm text-sm text-slate-500">
-          Set <code className="rounded bg-slate-200 px-1.5 py-0.5 text-xs">VITE_API_URL</code> to the EPL Move
-          gateway to use the carrier portal.
+          {t("app.backendHint").split("VITE_API_URL")[0]}
+          <code className="rounded bg-slate-200 px-1.5 py-0.5 text-xs">VITE_API_URL</code>
+          {t("app.backendHint").split("VITE_API_URL")[1]}
         </p>
+        <PortalSwitcher current="carrier" />
       </div>
     );
   }

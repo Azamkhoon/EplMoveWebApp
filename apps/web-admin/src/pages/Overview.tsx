@@ -2,6 +2,7 @@ import { Activity, Building2, DollarSign, Package, TrendingUp, AlertTriangle } f
 import { type LucideIcon } from "lucide-react";
 import { cn, formatCurrency, formatDateTime } from "@/lib/utils";
 import { TENANTS, SHIPMENTS, INVOICES, SERVICE_HEALTH, AUDIT_LOG } from "@/data/mock";
+import { useI18n } from "@/i18n/LanguageContext";
 
 const MONTHLY = [
   { month: "Jan", tenants: 2,  shipments: 8,  revenue: 28000  },
@@ -13,6 +14,7 @@ const MONTHLY = [
 ];
 
 export function Overview() {
+  const { t } = useI18n();
   const activeTenants  = TENANTS.filter((t) => t.status === "active").length;
   const totalRevenue   = INVOICES.filter((i) => i.status === "paid").reduce((s, i) => s + i.amount, 0);
   const activeShipments= SHIPMENTS.filter((s) => s.status === "in_transit" || s.status === "at_customs").length;
@@ -24,12 +26,12 @@ export function Overview() {
     <div className="space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard icon={Building2}   cls="bg-blue-50 text-blue-600"    label="Active Tenants"    value={String(activeTenants)}   sub={`of ${TENANTS.length} total`} />
-        <KpiCard icon={Package}     cls="bg-violet-50 text-violet-600" label="Active Shipments"  value={String(activeShipments)} sub="in transit / customs" />
-        <KpiCard icon={DollarSign}  cls="bg-emerald-50 text-emerald-600" label="Revenue Collected" value={formatCurrency(totalRevenue)} sub="all time" />
+        <KpiCard icon={Building2} cls="bg-blue-50 text-blue-600" label={t("overview.tenants")} value={String(activeTenants)} sub={`${TENANTS.length} ${t("nav.tenants").toLocaleLowerCase()}`} />
+        <KpiCard icon={Package} cls="bg-violet-50 text-violet-600" label={t("overview.shipments")} value={String(activeShipments)} sub={t("overview.inTransit")} />
+        <KpiCard icon={DollarSign} cls="bg-emerald-50 text-emerald-600" label={t("overview.revenue")} value={formatCurrency(totalRevenue)} sub={t("overview.thisMonth")} />
         <KpiCard icon={Activity}    cls={degraded > 0 ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600"}
-          label="Service Health" value={degraded > 0 ? `${degraded} degraded` : "All healthy"}
-          sub="12 microservices" urgent={degraded > 0} />
+          label={t("overview.health")} value={degraded > 0 ? `${degraded} ${t("status.degraded")}` : t("overview.allOperational")}
+          sub={`12 ${t("overview.servicesOnline")}`} urgent={degraded > 0} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -37,8 +39,8 @@ export function Overview() {
         <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-5">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="font-semibold text-slate-800">Platform Revenue</h2>
-              <p className="text-xs text-slate-400">Monthly billed, Jan–Jun 2026</p>
+              <h2 className="font-semibold text-slate-800">{t("overview.revenue")}</h2>
+              <p className="text-xs text-slate-400">{t("analytics.revenue")}</p>
             </div>
             <TrendingUp size={16} className="text-brand-500" />
           </div>
@@ -60,7 +62,7 @@ export function Overview() {
 
         {/* Service health summary */}
         <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="mb-4 font-semibold text-slate-800">Services</h2>
+          <h2 className="mb-4 font-semibold text-slate-800">{t("page.health.title")}</h2>
           <div className="space-y-2">
             {SERVICE_HEALTH.map((s) => (
               <div key={s.name} className="flex items-center justify-between gap-2">
@@ -84,22 +86,22 @@ export function Overview() {
         {/* Tenant table */}
         <div className="rounded-xl border border-slate-200 bg-white">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <h2 className="font-semibold text-slate-800">Recent Tenants</h2>
-            <a href="/tenants" className="text-xs font-medium text-brand-600 hover:underline">View all</a>
+            <h2 className="font-semibold text-slate-800">{t("nav.tenants")}</h2>
+            <a href="/tenants" className="text-xs font-medium text-brand-600 hover:underline">{t("common.view")} {t("common.all").toLocaleLowerCase()}</a>
           </div>
           <div className="divide-y divide-slate-50">
-            {TENANTS.slice(0, 6).map((t) => (
-              <div key={t.id} className="flex items-center justify-between gap-3 px-5 py-3">
+            {TENANTS.slice(0, 6).map((tenant) => (
+              <div key={tenant.id} className="flex items-center justify-between gap-3 px-5 py-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className={cn("h-1.5 w-1.5 rounded-full", t.status === "active" ? "bg-emerald-400" : "bg-red-400")} />
-                    <span className="truncate text-sm font-medium text-slate-800">{t.name}</span>
+                    <span className={cn("h-1.5 w-1.5 rounded-full", tenant.status === "active" ? "bg-emerald-400" : "bg-red-400")} />
+                    <span className="truncate text-sm font-medium text-slate-800">{tenant.name}</span>
                   </div>
-                  <p className="mt-0.5 text-xs text-slate-400 capitalize">{t.kind} · {t.memberCount} member{t.memberCount !== 1 ? "s" : ""}</p>
+                  <p className="mt-0.5 text-xs text-slate-400 capitalize">{tenant.kind} · {tenant.memberCount} member{tenant.memberCount !== 1 ? "s" : ""}</p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="text-sm font-semibold text-slate-800">{formatCurrency(t.invoiceTotal)}</p>
-                  <p className="text-[10px] text-slate-400">{t.shipmentCount} shipments</p>
+                  <p className="text-sm font-semibold text-slate-800">{formatCurrency(tenant.invoiceTotal)}</p>
+                  <p className="text-[10px] text-slate-400">{tenant.shipmentCount} {t("nav.shipments").toLocaleLowerCase()}</p>
                 </div>
               </div>
             ))}
@@ -109,8 +111,8 @@ export function Overview() {
         {/* Audit feed */}
         <div className="rounded-xl border border-slate-200 bg-white">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <h2 className="font-semibold text-slate-800">Recent Activity</h2>
-            <a href="/audit" className="text-xs font-medium text-brand-600 hover:underline">View all</a>
+            <h2 className="font-semibold text-slate-800">{t("overview.activity")}</h2>
+            <a href="/audit" className="text-xs font-medium text-brand-600 hover:underline">{t("overview.viewAudit")}</a>
           </div>
           <div className="divide-y divide-slate-50">
             {AUDIT_LOG.slice(0, 6).map((a) => (

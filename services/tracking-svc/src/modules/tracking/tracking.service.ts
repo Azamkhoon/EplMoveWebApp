@@ -10,7 +10,7 @@ type Ctx = { tenantId: string; correlationId?: string };
 /** Average speeds (km/h) for a rough ETA by transport mode. */
 const SPEED_KPH: Record<string, number> = { Air: 800, Road: 65, Rail: 50, Ocean: 35, Multimodal: 45 };
 
-export type Broadcaster = (tenantId: string, state: TrackingState) => void;
+export type Broadcaster = (tenantIds: string[], state: TrackingState) => void;
 
 @Injectable()
 export class TrackingService {
@@ -53,6 +53,7 @@ export class TrackingService {
       origin: Location;
       destination: Location;
       mode: string;
+      carrierTenantId: string;
       correlationId: string;
     },
   ): Promise<boolean> {
@@ -68,12 +69,20 @@ export class TrackingService {
       const eta = new Date(Date.now() + (totalKm / speed) * 3600_000).toISOString();
       await c.query(
         `INSERT INTO tracking.states
-          (shipment_id, tenant_id, origin, destination, total_km, lat, lng, progress, remaining_km, eta_date)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,0,$5,$8)
+          (shipment_id, tenant_id, participant_tenant_ids, origin, destination, total_km,
+           lat, lng, progress, remaining_km, eta_date)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,0,$6,$9)
          ON CONFLICT (shipment_id) DO NOTHING`,
         [
-          input.shipmentId, input.tenantId, JSON.stringify(input.origin),
-          JSON.stringify(input.destination), totalKm, input.origin.lat, input.origin.lng, eta,
+          input.shipmentId,
+          input.tenantId,
+          [input.tenantId, input.carrierTenantId],
+          JSON.stringify(input.origin),
+          JSON.stringify(input.destination),
+          totalKm,
+          input.origin.lat,
+          input.origin.lng,
+          eta,
         ],
       );
       return true;
@@ -82,7 +91,7 @@ export class TrackingService {
 
   /** Ingest a GPS position → recompute progress/ETA/geofence → emit + broadcast. */
   async ingest(ctx: Ctx, report: PositionReport): Promise<TrackingState> {
-    const { state, geofenceHit } = await this.tx(ctx.tenantId, async (c) => {
+    const { state, geofenceHit, participantTenantIds } = await this.tx(ctx.tenantId, async (c) => {
       const { rows } = await c.query(`SELECT * FROM tracking.states WHERE shipment_id = $1`, [report.shipmentId]);
       if (!rows[0]) throw new NotFoundException("shipment not tracked");
       const s = rows[0];
@@ -105,9 +114,19 @@ export class TrackingService {
       else if (nearDest && !s.dest_entered) geofenceHit = "destination";
 
       await c.query(
-        `INSERT INTO tracking.positions (shipment_id, tenant_id, lat, lng, speed_kph, heading_deg, reported_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [report.shipmentId, ctx.tenantId, report.lat, report.lng, report.speedKph ?? null, report.headingDeg ?? null, report.reportedAt ?? new Date()],
+        `INSERT INTO tracking.positions
+          (shipment_id, tenant_id, participant_tenant_ids, lat, lng, speed_kph, heading_deg, reported_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [
+          report.shipmentId,
+          s.tenant_id,
+          s.participant_tenant_ids,
+          report.lat,
+          report.lng,
+          report.speedKph ?? null,
+          report.headingDeg ?? null,
+          report.reportedAt ?? new Date(),
+        ],
       );
 
       const upd = await c.query(
@@ -143,10 +162,14 @@ export class TrackingService {
           }),
         });
       }
-      return { state, geofenceHit };
+      return {
+        state,
+        geofenceHit,
+        participantTenantIds: (s.participant_tenant_ids as string[]) ?? [s.tenant_id],
+      };
     });
 
-    this.broadcaster?.(ctx.tenantId, state);
+    this.broadcaster?.(participantTenantIds, state);
     return state;
   }
 
@@ -155,6 +178,27 @@ export class TrackingService {
       const { rows } = await c.query(`SELECT * FROM tracking.states WHERE shipment_id = $1`, [shipmentId]);
       if (!rows[0]) throw new NotFoundException("shipment not tracked");
       return this.rowToState(rows[0]);
+    });
+  }
+
+  async addParticipant(shipmentId: string, ownerTenantId: string, participantTenantId: string) {
+    return this.tx(ownerTenantId, async (c) => {
+      await c.query(
+        `UPDATE tracking.states
+            SET participant_tenant_ids = ARRAY(
+              SELECT DISTINCT unnest(participant_tenant_ids || $2::uuid)
+            )
+          WHERE shipment_id=$1`,
+        [shipmentId, participantTenantId],
+      );
+      await c.query(
+        `UPDATE tracking.positions
+            SET participant_tenant_ids = ARRAY(
+              SELECT DISTINCT unnest(participant_tenant_ids || $2::uuid)
+            )
+          WHERE shipment_id=$1`,
+        [shipmentId, participantTenantId],
+      );
     });
   }
 

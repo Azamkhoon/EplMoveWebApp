@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Patch,
   Param,
   Post,
   Query,
@@ -33,6 +34,28 @@ export class DocumentController {
     @Query("type") type?: string,
   ) {
     return this.docs.list(ctx, { shipmentId, type });
+  }
+
+  @Get("requests")
+  @RequirePermissions("doc:read")
+  requests(@Ctx() ctx: RequestContext, @Query("shipmentId") shipmentId?: string) {
+    return this.docs.listRequests(ctx, shipmentId);
+  }
+
+  @Post("requests")
+  @RequirePermissions("doc:request")
+  request(@Ctx() ctx: RequestContext, @Body() body: unknown) {
+    return this.docs.createRequest(ctx, body);
+  }
+
+  @Patch("requests/:id/review")
+  @RequirePermissions("doc:review")
+  reviewRequest(
+    @Ctx() ctx: RequestContext,
+    @Param("id") id: string,
+    @Body() body: unknown,
+  ) {
+    return this.docs.reviewRequest(ctx, id, body);
   }
 
   @Get(":id")

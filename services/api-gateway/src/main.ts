@@ -33,7 +33,7 @@ async function bootstrap() {
     const origin = req.headers.origin ?? "";
     res.header("Access-Control-Allow-Origin", allowedOrigins.has(origin) ? origin : "");
     res.header("Access-Control-Allow-Credentials", "true");
-    res.header("Access-Control-Allow-Headers", "authorization,content-type,x-correlation-id");
+    res.header("Access-Control-Allow-Headers", "authorization,content-type,x-correlation-id,x-epl-portal");
     res.header("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
     if (req.method === "OPTIONS") return res.sendStatus(204);
     next();
@@ -81,6 +81,7 @@ async function bootstrap() {
   app.use("/genius", requireAuth(), proxy(config.GENIUS_SVC_URL));
   app.use("/invoices", requireAuth(), proxy(config.BILLING_SVC_URL));
   app.use("/notifications", requireAuth(), proxy(config.NOTIFY_SVC_URL));
+  app.use("/directory", requireAuth(), proxy(config.TENANT_SVC_URL));
 
   // Platform admin — /admin/* → tenant-svc /platform/*. Permission enforced in tenant-svc.
   app.use(
@@ -117,6 +118,14 @@ async function bootstrap() {
   });
   app.use(wsProxy);
 
+  const notifyWsProxy = createProxyMiddleware({
+    target: config.NOTIFY_SVC_URL,
+    changeOrigin: true,
+    ws: true,
+    pathFilter: "/ws/notifications",
+  });
+  app.use(notifyWsProxy);
+
   app.use((_req, res) =>
     res.status(404).json({ error: { code: "NOT_FOUND", message: "no route" } }),
   );
@@ -126,6 +135,7 @@ async function bootstrap() {
   );
   // Forward WebSocket upgrades to tracking-svc.
   server.on("upgrade", wsProxy.upgrade);
+  server.on("upgrade", notifyWsProxy.upgrade);
 }
 
 bootstrap().catch((err) => {

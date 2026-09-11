@@ -19,9 +19,13 @@ export const PERMISSIONS = [
   "carrier:bid",
   // shipment
   "shipment:read",
+  "shipment:update",
+  "broker:assign",
   // documents
   "doc:upload",
   "doc:read",
+  "doc:request",
+  "doc:review",
   // tenant admin
   "tenant:manage",
   "tenant:members",
@@ -46,10 +50,22 @@ const SHIPPER_FULL: PermissionKey[] = [
   "quote:read",
   "quote:accept",
   "shipment:read",
+  "shipment:update",
+  "broker:assign",
   "doc:upload",
   "doc:read",
   "billing:read",
   "billing:pay",
+  "notify:read",
+];
+
+const BROKER_FULL: PermissionKey[] = [
+  "shipment:read",
+  "shipment:update",
+  "doc:upload",
+  "doc:read",
+  "doc:request",
+  "doc:review",
   "notify:read",
 ];
 
@@ -60,6 +76,7 @@ const CARRIER_FULL: PermissionKey[] = [
   "carrier:bid",
   "quote:read",
   "shipment:read",
+  "shipment:update",
   "doc:upload",
   "doc:read",
   "notify:read",
@@ -83,6 +100,18 @@ export const SYSTEM_ROLES: { key: string; name: string; perms: PermissionKey[] }
     perms: [...CARRIER_FULL, "tenant:manage", "tenant:members"],
   },
   { key: "carrier_member", name: "Carrier Member", perms: CARRIER_FULL },
+  { key: "dispatcher", name: "Dispatcher", perms: CARRIER_FULL },
+  {
+    key: "driver",
+    name: "Driver",
+    perms: ["shipment:read", "shipment:update", "doc:upload", "doc:read", "notify:read"],
+  },
+  {
+    key: "broker_admin",
+    name: "Broker Admin",
+    perms: [...BROKER_FULL, "tenant:manage", "tenant:members"],
+  },
+  { key: "broker_agent", name: "Broker Agent", perms: BROKER_FULL },
   {
     key: "platform_admin",
     name: "Platform Admin",
@@ -94,5 +123,6 @@ export const SYSTEM_ROLES: { key: string; name: string; perms: PermissionKey[] }
 export const DEFAULT_ADMIN_ROLE = "shipper_admin";
 /** Default role for a tenant that registers as a carrier. */
 export const CARRIER_ADMIN_ROLE = "carrier_admin";
+export const BROKER_ADMIN_ROLE = "broker_admin";
 /** System-level ops role. Assigned manually; not auto-provisioned. */
 export const PLATFORM_ADMIN_ROLE = "platform_admin";

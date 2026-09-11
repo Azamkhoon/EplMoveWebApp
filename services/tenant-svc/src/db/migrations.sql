@@ -12,7 +12,16 @@ CREATE TABLE IF NOT EXISTS tenant.tenants (
 );
 -- Backfill for databases created before `kind` existed.
 ALTER TABLE tenant.tenants ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'shipper';
+ALTER TABLE tenant.tenants ADD COLUMN IF NOT EXISTS vat_number text;
+ALTER TABLE tenant.tenants ADD COLUMN IF NOT EXISTS country text;
+ALTER TABLE tenant.tenants ADD COLUMN IF NOT EXISTS city text;
+ALTER TABLE tenant.tenants ADD COLUMN IF NOT EXISTS address text;
+ALTER TABLE tenant.tenants ADD COLUMN IF NOT EXISTS email text;
+ALTER TABLE tenant.tenants ADD COLUMN IF NOT EXISTS phone text;
+ALTER TABLE tenant.tenants ADD COLUMN IF NOT EXISTS company_verified_at timestamptz;
 CREATE UNIQUE INDEX IF NOT EXISTS tenants_slug_uidx ON tenant.tenants (slug);
+CREATE UNIQUE INDEX IF NOT EXISTS tenants_vat_number_uidx
+  ON tenant.tenants (vat_number) WHERE vat_number IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS tenant.permissions (
   id   uuid PRIMARY KEY DEFAULT gen_random_uuid(),

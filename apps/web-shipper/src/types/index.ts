@@ -1,9 +1,14 @@
 export type ShipmentStatus =
   | "posted"
   | "draft"
+  | "carrier_selected"
   | "booked"
+  | "pickup_scheduled"
+  | "picked_up"
   | "in_transit"
+  | "customs"
   | "delivered"
+  | "completed"
   | "delayed"
   | "cancelled";
 
@@ -52,7 +57,7 @@ export interface TrackingEvent {
 export interface ChatMessage {
   id: string;
   author: string;
-  role: "shipper" | "carrier" | "system";
+  role: "shipper" | "carrier" | "broker" | "system";
   text: string;
   timestamp: string; // ISO
 }

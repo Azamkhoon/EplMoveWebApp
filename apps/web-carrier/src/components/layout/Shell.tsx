@@ -19,58 +19,64 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/Logo";
 import { useAuth } from "@/api/AuthContext";
 import { useTheme } from "@/theme/ThemeContext";
+import { GeniusChat } from "@/components/ui/GeniusChat";
+import { PortalSwitcher } from "@/components/ui/PortalSwitcher";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { NotificationBell } from "@/components/ui/NotificationBell";
+import { useI18n } from "@/i18n/LanguageContext";
 
 const NAV_GROUPS = [
   {
-    label: "Operations",
+    labelKey: "nav.operations",
     items: [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
-      { to: "/dispatch", label: "Dispatch Board", icon: Zap },
-      { to: "/shipments", label: "Shipments", icon: Ship },
+      { to: "/", labelKey: "nav.dashboard", icon: LayoutDashboard, end: true },
+      { to: "/dispatch", labelKey: "nav.dispatch", icon: Zap },
+      { to: "/shipments", labelKey: "nav.shipments", icon: Ship },
     ],
   },
   {
-    label: "Freight",
+    labelKey: "nav.freight",
     items: [
-      { to: "/marketplace", label: "Marketplace", icon: Store },
-      { to: "/bids", label: "My Bids", icon: Gavel },
+      { to: "/marketplace", labelKey: "nav.marketplace", icon: Store },
+      { to: "/bids", labelKey: "nav.bids", icon: Gavel },
     ],
   },
   {
-    label: "Fleet",
+    labelKey: "nav.fleetGroup",
     items: [
-      { to: "/fleet", label: "Fleet", icon: Truck },
-      { to: "/drivers", label: "Drivers", icon: Users },
+      { to: "/fleet", labelKey: "nav.fleet", icon: Truck },
+      { to: "/drivers", labelKey: "nav.drivers", icon: Users },
     ],
   },
   {
-    label: "Finance",
+    labelKey: "nav.finance",
     items: [
-      { to: "/financials", label: "Financials", icon: CircleDollarSign },
-      { to: "/analytics", label: "Analytics", icon: BarChart3 },
+      { to: "/financials", labelKey: "nav.financials", icon: CircleDollarSign },
+      { to: "/analytics", labelKey: "nav.analytics", icon: BarChart3 },
     ],
   },
 ];
 
-const PAGE_META: Record<string, { title: string; subtitle: string }> = {
-  "/": { title: "Dashboard", subtitle: "Operations overview" },
-  "/dispatch": { title: "Dispatch Board", subtitle: "Assign drivers and vehicles to active loads" },
-  "/shipments": { title: "Shipments", subtitle: "Manage shipment execution" },
-  "/marketplace": { title: "Load Marketplace", subtitle: "Open loads from shippers — discover and bid" },
-  "/bids": { title: "My Bids", subtitle: "Your quotes, outcomes, and bid history" },
-  "/fleet": { title: "Fleet Management", subtitle: "Vehicles, availability, and maintenance" },
-  "/drivers": { title: "Driver Management", subtitle: "Roster, status, and assignments" },
-  "/financials": { title: "Financials", subtitle: "Revenue, invoices, and payments" },
-  "/analytics": { title: "Analytics", subtitle: "Performance, utilization, and win rates" },
+const PAGE_KEYS: Record<string, string> = {
+  "/": "dashboard",
+  "/dispatch": "dispatch",
+  "/shipments": "shipments",
+  "/marketplace": "marketplace",
+  "/bids": "bids",
+  "/fleet": "fleet",
+  "/drivers": "drivers",
+  "/financials": "financials",
+  "/analytics": "analytics",
 };
 
 export function Shell() {
   const { pathname } = useLocation();
   const auth = useAuth();
+  const { t } = useI18n();
   const { sidebarCollapsed, setSidebarCollapsed } = useTheme();
   const [collapsed, setCollapsed] = useState(sidebarCollapsed);
 
-  const page = PAGE_META[pathname] ?? PAGE_META["/"];
+  const page = PAGE_KEYS[pathname] ?? "dashboard";
   const w = collapsed ? "w-16" : "w-64";
 
   function toggle() {
@@ -97,7 +103,7 @@ export function Shell() {
                 EPL M<span className="text-[#c8a24a]">O</span>VE
               </p>
               <p className="truncate text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                Carrier Portal
+                {t("brand.portal")}
               </p>
             </div>
           )}
@@ -106,18 +112,18 @@ export function Shell() {
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-3">
           {NAV_GROUPS.map((group) => (
-            <div key={group.label} className="mb-2">
+            <div key={group.labelKey} className="mb-2">
               {!collapsed && (
                 <p className="mb-0.5 px-4 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                  {group.label}
+                  {t(group.labelKey)}
                 </p>
               )}
-              {group.items.map(({ to, label, icon: Icon, end }) => (
+              {group.items.map(({ to, labelKey, icon: Icon, end }) => (
                 <NavLink
                   key={to}
                   to={to}
                   end={end}
-                  title={collapsed ? label : undefined}
+                  title={collapsed ? t(labelKey) : undefined}
                   className={({ isActive }) =>
                     cn(
                       "group relative mx-2 mb-0.5 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
@@ -134,7 +140,7 @@ export function Shell() {
                         <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-brand-600" />
                       )}
                       <Icon size={18} className="shrink-0" />
-                      {!collapsed && <span className="flex-1 truncate">{label}</span>}
+                      {!collapsed && <span className="flex-1 truncate">{t(labelKey)}</span>}
                     </>
                   )}
                 </NavLink>
@@ -147,7 +153,7 @@ export function Shell() {
         <div className="border-t border-slate-100 px-2 py-2 space-y-0.5">
           <NavLink
             to="/settings"
-            title={collapsed ? "Settings" : undefined}
+            title={collapsed ? t("common.settings") : undefined}
             className={({ isActive }) =>
               cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
@@ -159,18 +165,18 @@ export function Shell() {
             }
           >
             <Settings size={17} />
-            {!collapsed && <span>Settings</span>}
+            {!collapsed && <span>{t("common.settings")}</span>}
           </NavLink>
           <button
             onClick={() => void auth.logout()}
-            title={collapsed ? "Sign out" : undefined}
+            title={collapsed ? t("common.signOut") : undefined}
             className={cn(
               "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600",
               collapsed && "justify-center px-0",
             )}
           >
             <LogOut size={17} />
-            {!collapsed && <span>Sign out</span>}
+            {!collapsed && <span>{t("common.signOut")}</span>}
           </button>
         </div>
 
@@ -187,14 +193,21 @@ export function Shell() {
       <div className={cn("flex min-h-screen flex-col transition-all duration-200", collapsed ? "pl-16" : "pl-64")}>
         <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-slate-200 bg-white/90 px-6 backdrop-blur-md">
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-semibold text-slate-900">{page.title}</h1>
-            <p className="hidden truncate text-xs text-slate-500 sm:block">{page.subtitle}</p>
+            <h1 className="truncate text-base font-semibold text-slate-900">{t(`page.${page}.title`)}</h1>
+            <p className="hidden truncate text-xs text-slate-500 sm:block">{t(`page.${page}.subtitle`)}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <PortalSwitcher current="carrier" />
+            <LanguageSwitcher />
+            <NotificationBell />
           </div>
         </header>
         <main className="flex-1 px-6 py-6">
           <Outlet />
         </main>
       </div>
+
+      <GeniusChat />
     </div>
   );
 }

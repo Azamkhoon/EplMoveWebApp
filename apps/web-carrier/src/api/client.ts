@@ -10,6 +10,7 @@ export const LIVE = Boolean(API_URL);
 export const api = LIVE
   ? new EplClient({
       baseUrl: API_URL!,
+      portal: "carrier",
       onTokenChange: (t) => {
         if (t) sessionStorage.setItem("epl-carrier-access", t);
         else sessionStorage.removeItem("epl-carrier-access");

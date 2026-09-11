@@ -845,6 +845,9 @@ importers:
       rxjs:
         specifier: ^7.8.1
         version: 7.8.2
+      ws:
+        specifier: ^8.18.0
+        version: 8.21.0
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -861,6 +864,9 @@ importers:
       '@types/pg':
         specifier: ^8.11.6
         version: 8.20.0
+      '@types/ws':
+        specifier: ^8.5.12
+        version: 8.18.1
       typescript:
         specifier: ^5.5.4
         version: 5.9.3

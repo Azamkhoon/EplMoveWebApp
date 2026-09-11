@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Search, Shield } from "lucide-react";
 import { cn, formatDateTime } from "@/lib/utils";
 import { AUDIT_LOG, TENANTS } from "@/data/mock";
+import { useI18n } from "@/i18n/LanguageContext";
 
 const ACTION_TONE: Record<string, string> = {
   "login":             "bg-slate-100 text-slate-600",
@@ -15,6 +16,7 @@ const ACTION_TONE: Record<string, string> = {
 };
 
 export function AuditLog() {
+  const { t } = useI18n();
   const [search, setSearch]         = useState("");
   const [tenantFilter, setTenantFilter] = useState("all");
 
@@ -35,11 +37,11 @@ export function AuditLog() {
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/20"
-            placeholder="Search actor, action, or detail…" value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("audit.search")} value={search} onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         <select value={tenantFilter} onChange={(e) => setTenantFilter(e.target.value)} className="input-base w-44 text-xs">
-          <option value="all">All tenants</option>
+          <option value="all">{t("common.all")} {t("nav.tenants").toLocaleLowerCase()}</option>
           {TENANTS.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
       </div>
@@ -48,8 +50,8 @@ export function AuditLog() {
       <div className="rounded-xl border border-slate-200 bg-white">
         <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3">
           <Shield size={15} className="text-slate-400" />
-          <span className="text-sm font-semibold text-slate-700">Audit Events</span>
-          <span className="ml-auto text-xs text-slate-400">{visible.length} events</span>
+          <span className="text-sm font-semibold text-slate-700">{t("nav.audit")}</span>
+          <span className="ml-auto text-xs text-slate-400">{visible.length}</span>
         </div>
         <div className="divide-y divide-slate-50">
           {visible.map((a) => (
@@ -71,7 +73,7 @@ export function AuditLog() {
             </div>
           ))}
           {visible.length === 0 && (
-            <div className="py-12 text-center text-sm text-slate-400">No events found</div>
+            <div className="py-12 text-center text-sm text-slate-400">{t("nav.audit")}: 0</div>
           )}
         </div>
       </div>

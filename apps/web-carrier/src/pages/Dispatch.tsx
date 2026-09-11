@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Field, Select } from "@/components/ui/Field";
+import { useI18n } from "@/i18n/LanguageContext";
 
 type DispatchStatus = "pending_assign" | "pickup_scheduled" | "in_transit" | "at_border" | "delivered";
 
@@ -43,6 +44,8 @@ const STATUS_META: Record<DispatchStatus, { label: string; tone: "slate" | "ambe
 };
 
 export function Dispatch() {
+  const { t } = useI18n();
+  const statusLabel = (status: DispatchStatus) => t(`status.${status === "pending_assign" ? "pendingDriver" : status === "pickup_scheduled" ? "pickupScheduled" : status === "in_transit" ? "inTransit" : status === "at_border" ? "atBorder" : status}`);
   const [loads, setLoads]       = useState<DispatchRow[]>(MOCK_LOADS);
   const [assigning, setAssigning] = useState<DispatchRow | null>(null);
   const [selDriver, setSelDriver]  = useState("");
@@ -85,10 +88,10 @@ export function Dispatch() {
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "In Transit",    value: counts.inTransit,  color: "bg-blue-500"    },
-          { label: "Unassigned",    value: counts.pending,    color: "bg-amber-500"   },
-          { label: "Delayed",       value: counts.delayed,    color: "bg-red-500"     },
-          { label: "Delivered",     value: counts.delivered,  color: "bg-emerald-500" },
+          { label: t("status.inTransit"), value: counts.inTransit, color: "bg-blue-500" },
+          { label: t("dispatch.unassigned"), value: counts.pending, color: "bg-amber-500" },
+          { label: t("status.delayed"), value: counts.delayed, color: "bg-red-500" },
+          { label: t("status.delivered"), value: counts.delivered, color: "bg-emerald-500" },
         ].map(({ label, value, color }) => (
           <div key={label} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-card">
             <span className={`h-3 w-3 rounded-full ${color}`} />
@@ -112,7 +115,7 @@ export function Dispatch() {
                 : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
             }`}
           >
-            {f === "all" ? "All loads" : f === "delayed" ? "Delayed only" : "Unassigned"}
+            {f === "all" ? t("common.all") : f === "delayed" ? t("status.delayed") : t("dispatch.unassigned")}
           </button>
         ))}
         <div className="ml-auto text-xs text-slate-400">{shown.length} of {loads.length} loads</div>
@@ -123,15 +126,15 @@ export function Dispatch() {
           <table className="w-full min-w-[900px] text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-left text-[11px] uppercase tracking-wide text-slate-400">
-                <th className="px-5 py-3 font-medium">Shipment</th>
+                <th className="px-5 py-3 font-medium">{t("common.shipment")}</th>
                 <th className="px-4 py-3 font-medium">Customer</th>
-                <th className="px-4 py-3 font-medium">Route</th>
-                <th className="px-4 py-3 font-medium">Pickup</th>
-                <th className="px-4 py-3 font-medium">Delivery</th>
-                <th className="px-4 py-3 font-medium">Driver</th>
-                <th className="px-4 py-3 font-medium">Vehicle</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium text-right">Action</th>
+                <th className="px-4 py-3 font-medium">{t("common.route")}</th>
+                <th className="px-4 py-3 font-medium">{t("shipments.pickup")}</th>
+                <th className="px-4 py-3 font-medium">{t("shipments.delivery")}</th>
+                <th className="px-4 py-3 font-medium">{t("common.driver")}</th>
+                <th className="px-4 py-3 font-medium">{t("common.vehicle")}</th>
+                <th className="px-4 py-3 font-medium">{t("common.status")}</th>
+                <th className="px-4 py-3 font-medium text-right">{t("common.actions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -158,7 +161,7 @@ export function Dispatch() {
                     <td className="px-4 py-3.5">
                       {row.driver
                         ? <span className="flex items-center gap-1.5 text-slate-700"><User size={13} className="text-slate-300" />{row.driver}</span>
-                        : <span className="text-xs text-red-400">Unassigned</span>}
+                        : <span className="text-xs text-red-400">{t("dispatch.unassigned")}</span>}
                     </td>
                     <td className="px-4 py-3.5">
                       {row.vehicle
@@ -166,12 +169,12 @@ export function Dispatch() {
                         : <span className="text-xs text-red-400">None</span>}
                     </td>
                     <td className="px-4 py-3.5">
-                      <Badge tone={meta.tone}>{meta.label}</Badge>
+                      <Badge tone={meta.tone}>{statusLabel(row.status)}</Badge>
                     </td>
                     <td className="px-4 py-3.5 text-right">
                       {row.status !== "delivered" && (
                         <Button size="sm" variant="outline" onClick={() => openAssign(row)}>
-                          {row.driver ? "Reassign" : "Assign"}
+                          {t("dispatch.assign")}
                         </Button>
                       )}
                     </td>
@@ -187,25 +190,25 @@ export function Dispatch() {
       <Modal
         open={!!assigning}
         onClose={() => setAssigning(null)}
-        title={`Assign · ${assigning?.ref ?? ""}`}
+        title={`${t("dispatch.assign")} · ${assigning?.ref ?? ""}`}
         subtitle={assigning ? `${assigning.origin} → ${assigning.dest}` : undefined}
         footer={
           <>
-            <Button variant="outline" onClick={() => setAssigning(null)}>Cancel</Button>
-            <Button onClick={confirmAssign}>Confirm assignment</Button>
+            <Button variant="outline" onClick={() => setAssigning(null)}>{t("common.cancel")}</Button>
+            <Button onClick={confirmAssign}>{t("dispatch.confirm")}</Button>
           </>
         }
       >
         <div className="space-y-4">
-          <Field label="Assign driver">
+          <Field label={t("dispatch.driver")}>
             <Select value={selDriver} onChange={(e) => setSelDriver(e.target.value)}>
-              <option value="">— Select driver —</option>
+              <option value="">{t("dispatch.driver")}</option>
               {DRIVERS.map((d) => <option key={d} value={d}>{d}</option>)}
             </Select>
           </Field>
-          <Field label="Assign vehicle">
+          <Field label={t("dispatch.vehicle")}>
             <Select value={selVehicle} onChange={(e) => setSelVehicle(e.target.value)}>
-              <option value="">— Select vehicle —</option>
+              <option value="">{t("dispatch.vehicle")}</option>
               {VEHICLES.map((v) => <option key={v} value={v}>{v}</option>)}
             </Select>
           </Field>

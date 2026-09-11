@@ -42,6 +42,7 @@ export class BidAcceptedConsumer implements OnModuleInit, OnModuleDestroy {
             tenantId: event.tenantId,
             loadId: payload.loadId,
             quoteId: payload.quoteId,
+            bidId: bid.id,
             reference: payload.reference,
             carrierId: bid.carrierId,
             carrierName: bid.carrier?.name ?? "Carrier",

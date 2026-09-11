@@ -1,6 +1,7 @@
 import { TrendingUp, BarChart3, CheckCircle2, Clock, Download, type LucideIcon } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { DECLARATIONS, CLIENTS } from "@/data/mock";
+import { useI18n } from "@/i18n/LanguageContext";
 
 const MONTHLY = [
   { month: "Jan", declarations: 14, cleared: 13, revenue: 48000 },
@@ -30,6 +31,7 @@ const CLIENT_REVENUE = CLIENTS.map((c) => ({
 })).sort((a, b) => b.revenue - a.revenue);
 
 export function Analytics() {
+  const { t } = useI18n();
   const totalDeclarations = MONTHLY.reduce((s, m) => s + m.declarations, 0);
   const totalCleared      = MONTHLY.reduce((s, m) => s + m.cleared, 0);
   const totalRevenue      = MONTHLY.reduce((s, m) => s + m.revenue, 0);
@@ -43,10 +45,10 @@ export function Analytics() {
     <div className="space-y-6">
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard icon={BarChart3}    cls="text-blue-600 bg-blue-50"     label="Total Declarations" value={String(totalDeclarations)} />
-        <KpiCard icon={CheckCircle2} cls="text-emerald-600 bg-emerald-50" label="Clearance Rate"  value={`${clearanceRate}%`} />
-        <KpiCard icon={Clock}        cls="text-amber-600 bg-amber-50"   label="Avg Processing"    value="2.6 days" />
-        <KpiCard icon={TrendingUp}   cls="text-teal-600 bg-teal-50"     label="YTD Revenue"       value={formatCurrency(totalRevenue, "USD")} />
+        <KpiCard icon={BarChart3} cls="text-blue-600 bg-blue-50" label={t("analytics.declarationsProcessed")} value={String(totalDeclarations)} />
+        <KpiCard icon={CheckCircle2} cls="text-emerald-600 bg-emerald-50" label={t("dashboard.clearanceRate")} value={`${clearanceRate}%`} />
+        <KpiCard icon={Clock} cls="text-amber-600 bg-amber-50" label={t("analytics.clearanceTime")} value="2.6" />
+        <KpiCard icon={TrendingUp} cls="text-teal-600 bg-teal-50" label={t("analytics.monthlyRevenue")} value={formatCurrency(totalRevenue, "USD")} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -54,11 +56,11 @@ export function Analytics() {
         <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-5">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <h2 className="font-semibold text-slate-800">Monthly Declarations & Revenue</h2>
+              <h2 className="font-semibold text-slate-800">{t("analytics.volume")} &amp; {t("analytics.monthlyRevenue")}</h2>
               <p className="text-xs text-slate-400">Jan–Jun 2026</p>
             </div>
             <button className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
-              <Download size={12} /> Export
+              <Download size={12} /> {t("common.view")}
             </button>
           </div>
           <div className="flex items-end gap-3 h-40">
@@ -87,15 +89,15 @@ export function Analytics() {
           </div>
           {/* Legend */}
           <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-500">
-            <LegendItem color="bg-teal-100" label="Revenue" />
-            <LegendItem color="bg-blue-400" label="Cleared" />
-            <LegendItem color="bg-slate-200" label="Pending/Rejected" />
+            <LegendItem color="bg-teal-100" label={t("dashboard.revenue")} />
+            <LegendItem color="bg-blue-400" label={t("status.cleared")} />
+            <LegendItem color="bg-slate-200" label={`${t("status.pending")} / ${t("status.rejected")}`} />
           </div>
         </div>
 
         {/* Declaration by type donut */}
         <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="mb-4 font-semibold text-slate-800">By Declaration Type</h2>
+          <h2 className="mb-4 font-semibold text-slate-800">{t("analytics.byType")}</h2>
           <div className="flex items-center justify-center mb-5">
             <DonutChart segments={DEC_BY_TYPE.map((d) => ({ value: d.value, color: d.color.replace("bg-","") }))} total={totalType} />
           </div>
@@ -118,7 +120,7 @@ export function Analytics() {
       {/* Declarant performance */}
       <div className="rounded-xl border border-slate-200 bg-white">
         <div className="border-b border-slate-100 px-5 py-4">
-          <h2 className="font-semibold text-slate-800">Declarant Performance</h2>
+          <h2 className="font-semibold text-slate-800">{t("analytics.performance")}</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -158,7 +160,7 @@ export function Analytics() {
       {/* Client revenue */}
       <div className="rounded-xl border border-slate-200 bg-white">
         <div className="border-b border-slate-100 px-5 py-4">
-          <h2 className="font-semibold text-slate-800">Revenue by Client</h2>
+          <h2 className="font-semibold text-slate-800">{t("analytics.topClients")}</h2>
         </div>
         <div className="divide-y divide-slate-50">
           {CLIENT_REVENUE.map((c) => {

@@ -3,6 +3,8 @@ import { Paperclip, Send } from "lucide-react";
 import type { ChatMessage } from "@/types";
 import { Avatar } from "@/components/ui/Avatar";
 import { cn } from "@/lib/utils";
+import { api } from "@/api/client";
+import { ApiError, type ShipmentMessage } from "@epl/sdk";
 
 function timeLabel(iso: string) {
   return new Date(iso).toLocaleTimeString("en-US", {
@@ -14,21 +16,55 @@ function timeLabel(iso: string) {
 export function ChatPanel({
   initial,
   carrier,
+  shipmentId,
 }: {
   initial: ChatMessage[];
   carrier: string;
+  shipmentId?: string;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(initial);
   const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  function send() {
+  useEffect(() => {
+    if (!api || !shipmentId) return;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const rows = await api!.listShipmentMessages(shipmentId);
+        if (active) setMessages(rows.map(toChatMessage));
+      } catch {
+        // Keep the last successful conversation during transient polling errors.
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(refresh, 5000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [shipmentId]);
+
+  async function send() {
     const trimmed = text.trim();
     if (!trimmed) return;
+    if (api && shipmentId) {
+      setSending(true);
+      setError(null);
+      try {
+        const sent = await api.sendShipmentMessage(shipmentId, { body: trimmed });
+        setMessages((current) => [...current, toChatMessage(sent)]);
+        setText("");
+      } catch (reason) {
+        setError(reason instanceof ApiError ? reason.message : "Message could not be sent");
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
     const msg: ChatMessage = {
       id: `M-${Date.now()}`,
       author: "You",
@@ -38,19 +74,6 @@ export function ChatPanel({
     };
     setMessages((m) => [...m, msg]);
     setText("");
-    // Simulate a carrier reply
-    setTimeout(() => {
-      setMessages((m) => [
-        ...m,
-        {
-          id: `M-${Date.now() + 1}`,
-          author: carrier,
-          role: "carrier",
-          text: "Thanks for your message — our ops team will follow up shortly.",
-          timestamp: new Date().toISOString(),
-        },
-      ]);
-    }, 1400);
   }
 
   return (
@@ -125,11 +148,27 @@ export function ChatPanel({
         <button
           onClick={send}
           className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600 text-white transition hover:bg-brand-700 active:scale-95 disabled:opacity-50"
-          disabled={!text.trim()}
+          disabled={!text.trim() || sending}
         >
           <Send size={16} />
         </button>
       </div>
+      {error && <p className="border-t border-red-100 bg-red-50 px-4 py-2 text-xs text-red-700">{error}</p>}
     </div>
   );
+}
+
+function toChatMessage(message: ShipmentMessage): ChatMessage {
+  const role: ChatMessage["role"] = message.senderRole.startsWith("shipper_")
+    ? "shipper"
+    : message.senderRole.startsWith("broker_")
+      ? "broker"
+      : "carrier";
+  return {
+    id: message.id,
+    author: message.senderName,
+    role,
+    text: message.body,
+    timestamp: message.createdAt,
+  };
 }

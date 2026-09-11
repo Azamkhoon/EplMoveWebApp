@@ -1,18 +1,19 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Check, Globe, LogOut, Plus, Search, Settings as SettingsIcon } from "lucide-react";
+import { Check, Globe, LogOut, Plus, Search, Settings as SettingsIcon } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
+import { PortalSwitcher } from "@/components/ui/PortalSwitcher";
 import { useI18n } from "@/i18n/LanguageContext";
 import { useAuth } from "@/api/AuthContext";
 import { LANGUAGES } from "@/i18n/translations";
+import { NotificationBell } from "@/components/ui/NotificationBell";
 
 const PAGE_KEYS: Record<string, string> = {
   "/": "dashboard",
   "/shipments": "shipments",
-  "/marketplace": "marketplace",
-  "/live-tracking": "liveTracking",
   "/tracking": "tracking",
+  "/marketplace": "marketplace",
   "/documents": "documents",
   "/invoices": "invoices",
   "/quotation": "quotation",
@@ -24,8 +25,11 @@ const PAGE_KEYS: Record<string, string> = {
 export function Topbar({ pathname }: { pathname: string }) {
   const navigate = useNavigate();
   const { t } = useI18n();
-  const [showNotifs, setShowNotifs] = useState(false);
-  const key = pathname.startsWith("/shipments") ? "/shipments" : pathname;
+  const key = pathname.startsWith("/shipments")
+    ? "/shipments"
+    : pathname.startsWith("/tracking")
+      ? "/tracking"
+      : pathname;
   const page = PAGE_KEYS[key] ?? "dashboard";
 
   return (
@@ -60,46 +64,11 @@ export function Topbar({ pathname }: { pathname: string }) {
           {t("topbar.newShipment")}
         </Button>
 
+        <PortalSwitcher current="shipper" />
+
         <LanguageSwitcher />
 
-        <div className="relative">
-          <button
-            onClick={() => setShowNotifs((v) => !v)}
-            className="relative flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
-          >
-            <Bell size={18} />
-            <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white" />
-          </button>
-          {showNotifs && (
-            <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setShowNotifs(false)}
-              />
-              <div className="absolute right-0 top-12 z-20 w-80 animate-fade-in rounded-xl border border-slate-200 bg-white p-2 shadow-card-hover">
-                <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  {t("topbar.notifications")}
-                </p>
-                {[
-                  { t: "EPL-2026-0476 delayed", d: "Port congestion at Le Havre — ETA +1 day", tone: "text-red-600" },
-                  { t: "New quote received", d: "Maersk Line responded to your Ocean RFQ", tone: "text-brand-600" },
-                  { t: "POD uploaded", d: "EPL-2026-0455 delivered & signed", tone: "text-emerald-600" },
-                ].map((n, i) => (
-                  <div
-                    key={i}
-                    className="flex gap-3 rounded-lg px-3 py-2.5 transition hover:bg-slate-50"
-                  >
-                    <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${n.tone.replace("text", "bg")}`} />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-800">{n.t}</p>
-                      <p className="text-xs text-slate-500">{n.d}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+        <NotificationBell />
 
         <AccountMenu />
       </div>
@@ -122,7 +91,7 @@ function AccountMenu() {
         <Avatar name="Acme Logistics" size="sm" />
         <div className="hidden leading-tight lg:block">
           <p className="text-sm font-medium text-slate-800">Acme Logistics</p>
-          <p className="text-[11px] text-slate-400">Shipper · Pro</p>
+          <p className="text-[11px] text-slate-400">Customer · Pro</p>
         </div>
       </button>
       {open && (

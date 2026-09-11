@@ -18,7 +18,7 @@ import {
 import { config } from "../../config";
 import { AuthService, type IssuedAuth } from "./auth.service";
 
-const REFRESH_COOKIE = "epl_refresh";
+const PORTALS = new Set(["shipper", "carrier", "broker", "admin"]);
 
 @Controller("auth")
 export class AuthController {
@@ -32,14 +32,14 @@ export class AuthController {
   @Post("register")
   async register(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const input = RegisterInput.parse(body);
-    return this.send(res, await this.auth.register(input, this.meta(req)));
+    return this.send(req, res, await this.auth.register(input, this.meta(req)));
   }
 
   @Post("login")
   @HttpCode(200)
   async login(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const input = LoginInput.parse(body);
-    return this.send(res, await this.auth.login(input, this.meta(req)));
+    return this.send(req, res, await this.auth.login(input, this.meta(req)));
   }
 
   @Post("otp/request")
@@ -53,22 +53,24 @@ export class AuthController {
   @HttpCode(200)
   async otpVerify(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const input = OtpVerifyInput.parse(body);
-    return this.send(res, await this.auth.verifyOtp(input.email, input.code, this.meta(req)));
+    return this.send(req, res, await this.auth.verifyOtp(input.email, input.code, this.meta(req)));
   }
 
   @Post("refresh")
   @HttpCode(200)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const token = req.cookies?.[REFRESH_COOKIE] ?? this.bearerRefresh(req);
-    return this.send(res, await this.auth.refresh(token, this.meta(req)));
+    const cookie = this.refreshCookie(req);
+    const token = req.cookies?.[cookie] ?? this.bearerRefresh(req);
+    return this.send(req, res, await this.auth.refresh(token, this.meta(req)));
   }
 
   @Post("logout")
   @HttpCode(204)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const token = req.cookies?.[REFRESH_COOKIE];
+    const cookie = this.refreshCookie(req);
+    const token = req.cookies?.[cookie];
     await this.auth.logout(token);
-    res.clearCookie(REFRESH_COOKIE, { path: "/auth" });
+    res.clearCookie(cookie, { path: "/auth" });
   }
 
   // ── helpers ──
@@ -82,8 +84,16 @@ export class AuthController {
     return b.refreshToken;
   }
 
-  private send(res: Response, issued: IssuedAuth) {
-    res.cookie(REFRESH_COOKIE, issued.refreshToken, {
+  private refreshCookie(req: Request): string {
+    const raw = Array.isArray(req.headers["x-epl-portal"])
+      ? req.headers["x-epl-portal"][0]
+      : req.headers["x-epl-portal"];
+    const portal = typeof raw === "string" && PORTALS.has(raw) ? raw : "default";
+    return `epl_refresh_${portal}`;
+  }
+
+  private send(req: Request, res: Response, issued: IssuedAuth) {
+    res.cookie(this.refreshCookie(req), issued.refreshToken, {
       httpOnly: true,
       secure: config.NODE_ENV === "production",
       sameSite: "lax",

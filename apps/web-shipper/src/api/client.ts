@@ -6,17 +6,26 @@ import { EplClient } from "@epl/sdk";
  * offline with no backend — see docs/architecture/07-roadmap.md (Phase 1).
  */
 export const API_URL = import.meta.env.VITE_API_URL as string | undefined;
-export const LIVE = Boolean(API_URL);
+export const DEMO_SESSION_KEY = "epl-shipper-mock-authed";
 
-export const api = LIVE
+// Keep demo sessions fully mock-driven even when VITE_API_URL is configured.
+// This is a live ES-module binding so pages see the updated mode after login.
+export let LIVE = Boolean(API_URL) && !sessionStorage.getItem(DEMO_SESSION_KEY);
+
+export const api = API_URL
   ? new EplClient({
       baseUrl: API_URL!,
+      portal: "shipper",
       onTokenChange: (t) => {
         if (t) sessionStorage.setItem("epl-access", t);
         else sessionStorage.removeItem("epl-access");
       },
     })
   : null;
+
+export function setDemoMode(enabled: boolean) {
+  LIVE = Boolean(API_URL) && !enabled;
+}
 
 /** Restore an access token across reloads (best-effort; refresh cookie is source of truth). */
 export function restoreToken() {

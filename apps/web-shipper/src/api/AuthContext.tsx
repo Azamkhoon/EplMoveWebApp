@@ -5,7 +5,16 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { api, LIVE, restoreToken } from "./client";
+import {
+  api,
+  DEMO_SESSION_KEY,
+  LIVE,
+  restoreToken,
+  setDemoMode,
+} from "./client";
+
+const DEMO_EMAIL    = "demo@acme-logistics.test";
+const DEMO_PASSWORD = "demo12345";
 
 interface AuthState {
   live: boolean; // true = real backend, false = mock mode
@@ -17,6 +26,11 @@ interface AuthState {
     password: string;
     name: string;
     tenantName: string;
+    vatNumber: string;
+    country: string;
+    city: string;
+    address: string;
+    phone: string;
   }) => Promise<void>;
   requestOtp: (email: string) => Promise<{ devCode?: string }>;
   verifyOtp: (email: string, code: string) => Promise<void>;
@@ -31,7 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(LIVE);
 
   useEffect(() => {
-    if (!LIVE || !api) return;
+    if (sessionStorage.getItem(DEMO_SESSION_KEY)) { setAuthed(true); setLoading(false); return; }
+    if (!LIVE || !api) { setLoading(false); return; }
     restoreToken();
     // Try to silently restore a session via the refresh cookie.
     api
@@ -45,10 +60,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authed,
     loading,
     async login(email, password, tenantSlug) {
+      // Demo shortcut — works even when backend is offline
+      if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
+        sessionStorage.setItem(DEMO_SESSION_KEY, "1");
+        setDemoMode(true);
+        setAuthed(true);
+        return;
+      }
+      sessionStorage.removeItem(DEMO_SESSION_KEY);
+      setDemoMode(false);
       await api!.login({ email, password, tenantSlug });
       setAuthed(true);
     },
     async register(input) {
+      sessionStorage.removeItem(DEMO_SESSION_KEY);
+      setDemoMode(false);
       await api!.register(input);
       setAuthed(true);
     },
@@ -58,7 +84,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthed(true);
     },
     async logout() {
-      await api!.logout();
+      const wasDemo = Boolean(sessionStorage.getItem(DEMO_SESSION_KEY));
+      sessionStorage.removeItem(DEMO_SESSION_KEY);
+      setDemoMode(false);
+      if (!wasDemo) await api?.logout();
       setAuthed(false);
     },
   };

@@ -31,6 +31,7 @@ export const sessions = authSchema.table(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id").notNull(),
+    tenantId: uuid("tenant_id"),
     familyId: uuid("family_id").notNull(), // token rotation family (theft detection)
     refreshTokenHash: text("refresh_token_hash").notNull(),
     ip: text("ip"),

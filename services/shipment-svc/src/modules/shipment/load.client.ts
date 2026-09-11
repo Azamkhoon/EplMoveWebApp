@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { Load } from "@epl/contracts";
+import type { Load, LoadStatus } from "@epl/contracts";
 import { config } from "../../config";
 
 @Injectable()
@@ -12,5 +12,14 @@ export class LoadClient {
     );
     if (!res.ok) return null;
     return (await res.json()) as Load;
+  }
+
+  async transition(id: string, tenantId: string, to: LoadStatus): Promise<void> {
+    const res = await fetch(`${this.base}/internal/loads/${id}/transition`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ tenantId, to }),
+    });
+    if (!res.ok) throw new Error(`load transition failed: ${res.status}`);
   }
 }

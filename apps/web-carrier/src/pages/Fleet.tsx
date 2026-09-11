@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { ProgressBar } from "@/components/ui/Misc";
+import { useI18n } from "@/i18n/LanguageContext";
 
 type VehicleStatus = "active" | "idle" | "maintenance" | "decommissioned";
 type VehicleType = "Truck" | "Trailer" | "Reefer" | "Rail Wagon" | "Air Cargo" | "Ocean Container" | "Courier Van";
@@ -44,6 +45,7 @@ const STATUS_META: Record<VehicleStatus, { label: string; tone: "green" | "slate
 const VEHICLE_TYPES: VehicleType[] = ["Truck", "Trailer", "Reefer", "Rail Wagon", "Air Cargo", "Ocean Container", "Courier Van"];
 
 export function Fleet() {
+  const { t } = useI18n();
   const [vehicles, setVehicles] = useState<Vehicle[]>(INITIAL);
   const [search, setSearch]     = useState("");
   const [statusFilter, setStatusFilter] = useState<VehicleStatus | "all">("all");
@@ -101,15 +103,15 @@ export function Fleet() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-card">
           <p className="text-2xl font-bold text-slate-900">{vehicles.length}</p>
-          <p className="text-xs text-slate-500">Total vehicles</p>
+          <p className="text-xs text-slate-500">{t("common.vehicle")}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-card">
           <p className="text-2xl font-bold text-emerald-600">{active}</p>
-          <p className="text-xs text-slate-500">Active</p>
+          <p className="text-xs text-slate-500">{t("common.active")}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-card">
           <p className="text-2xl font-bold text-amber-600">{maintenance}</p>
-          <p className="text-xs text-slate-500">In maintenance</p>
+          <p className="text-xs text-slate-500">{t("common.maintenance")}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-card">
           <div className="mb-1 flex items-end justify-between">
@@ -117,7 +119,7 @@ export function Fleet() {
             <Truck size={16} className="text-slate-300" />
           </div>
           <ProgressBar value={utilPct} tone="emerald" />
-          <p className="mt-1 text-xs text-slate-500">Fleet utilisation</p>
+          <p className="mt-1 text-xs text-slate-500">{t("dashboard.fleetUtilisation")}</p>
         </div>
       </div>
 
@@ -128,7 +130,7 @@ export function Fleet() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Plate or type…"
+            placeholder={t("fleet.search")}
             className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 text-sm placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
         </div>
@@ -141,12 +143,12 @@ export function Fleet() {
                 statusFilter === s ? "bg-brand-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50"
               }`}
             >
-              {s === "all" ? "All" : STATUS_META[s]?.label ?? s}
+              {s === "all" ? t("common.all") : s === "idle" ? t("common.inactive") : t(`common.${s}`)}
             </button>
           ))}
         </div>
         <Button className="ml-auto" size="sm" onClick={openAdd}>
-          <Plus size={15} /> Add vehicle
+          <Plus size={15} /> {t("fleet.add")}
         </Button>
       </div>
 
@@ -163,15 +165,15 @@ export function Fleet() {
                 </div>
                 <Badge tone={meta.tone}>
                   <span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${meta.dot}`} />
-                  {meta.label}
+                  {v.status === "idle" ? t("common.inactive") : t(`common.${v.status}`)}
                 </Badge>
               </div>
               <div className="space-y-1.5 text-xs text-slate-600">
-                <div className="flex justify-between"><span className="text-slate-400">Capacity</span><span>{v.capacityT}t / {v.capacityM3}m³</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">{t("fleet.capacity")}</span><span>{v.capacityT}t / {v.capacityM3}m³</span></div>
                 {v.tempRange && <div className="flex justify-between"><span className="text-slate-400">Temp range</span><span>{v.tempRange}</span></div>}
                 <div className="flex justify-between"><span className="text-slate-400">GPS</span><span>{v.gpsId}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">Next service</span><span>{v.nextService}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">Driver</span><span>{v.assignedTo ?? "—"}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">{t("fleet.nextService")}</span><span>{v.nextService}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">{t("common.driver")}</span><span>{v.assignedTo ?? "—"}</span></div>
               </div>
               {v.status === "maintenance" && (
                 <div className="mt-3 flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700">
@@ -197,28 +199,28 @@ export function Fleet() {
       <Modal
         open={isOpen}
         onClose={closeModal}
-        title={editing ? `Edit ${editing.plate}` : "Add vehicle"}
+        title={editing ? `${t("common.view")} ${editing.plate}` : t("fleet.add")}
         size="lg"
         footer={
           <>
-            <Button variant="outline" onClick={closeModal}>Cancel</Button>
-            <Button onClick={save}>{editing ? "Save changes" : "Add vehicle"}</Button>
+            <Button variant="outline" onClick={closeModal}>{t("common.cancel")}</Button>
+            <Button onClick={save}>{t("fleet.save")}</Button>
           </>
         }
       >
         <div className="grid grid-cols-2 gap-4">
-          <Field label="License plate">
+          <Field label={t("fleet.plate")}>
             <Input value={form.plate ?? ""} onChange={(e) => f("plate", e.target.value)} placeholder="TX-4821" />
           </Field>
           <Field label="VIN number">
             <Input value={form.vin ?? ""} onChange={(e) => f("vin", e.target.value)} placeholder="1HGCM82633A…" />
           </Field>
-          <Field label="Vehicle type">
+          <Field label={t("fleet.type")}>
             <Select value={form.type ?? "Truck"} onChange={(e) => f("type", e.target.value)}>
               {VEHICLE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </Select>
           </Field>
-          <Field label="Status">
+          <Field label={t("common.status")}>
             <Select value={form.status ?? "idle"} onChange={(e) => f("status", e.target.value)}>
               <option value="active">Active</option>
               <option value="idle">Idle</option>
@@ -226,7 +228,7 @@ export function Fleet() {
               <option value="decommissioned">Decommissioned</option>
             </Select>
           </Field>
-          <Field label="Capacity (tonnes)">
+          <Field label={t("fleet.capacity")}>
             <Input type="number" value={form.capacityT ?? ""} onChange={(e) => f("capacityT", Number(e.target.value))} placeholder="20" />
           </Field>
           <Field label="Capacity (m³)">
@@ -241,7 +243,7 @@ export function Fleet() {
           <Field label="Insurance policy" className="col-span-2">
             <Input value={form.insurance ?? ""} onChange={(e) => f("insurance", e.target.value)} placeholder="AXA-2024-881" />
           </Field>
-          <Field label="Next service date" className="col-span-2">
+          <Field label={t("fleet.nextService")} className="col-span-2">
             <Input value={form.nextService ?? ""} onChange={(e) => f("nextService", e.target.value)} placeholder="Aug 15, 2025" />
           </Field>
         </div>

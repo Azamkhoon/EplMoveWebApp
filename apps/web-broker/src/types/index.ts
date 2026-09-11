@@ -51,8 +51,13 @@ export interface Client {
 export interface HsCode {
   code: string;
   description: string;
-  dutyRate: number;
-  vatRate: number;
+  dutyRate: number;          // MFN import duty rate (%)
+  vatRate: number;           // VAT rate — standard 12% in UZ
+  exciseRate: number | null; // Excise duty rate (%) or specific amount note
+  cisRate: number | null;    // Preferential rate for CIS-origin goods (%)
+  exportDuty: number | null; // Export duty rate (%) if applicable
+  requiresCert: boolean;     // Mandatory O'zstandart/GOST cert required
+  certBody: string | null;   // Certification body name
   notes: string | null;
   chapter: string;
   heading: string;

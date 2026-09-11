@@ -26,9 +26,14 @@ const NAV = [
     badge:
       (STATUS_COUNTS.in_transit ?? 0) + (STATUS_COUNTS.delayed ?? 0) || undefined,
   },
+  {
+    to: "/tracking",
+    labelKey: "nav.tracking",
+    icon: Navigation,
+    badge:
+      (STATUS_COUNTS.in_transit ?? 0) + (STATUS_COUNTS.delayed ?? 0) || undefined,
+  },
   { to: "/marketplace", labelKey: "nav.marketplace", icon: Store },
-  { to: "/live-tracking", labelKey: "nav.liveTracking", icon: Navigation },
-  { to: "/tracking", labelKey: "nav.tracking", icon: Navigation },
   { to: "/documents", labelKey: "nav.documents", icon: FolderArchive },
   { to: "/invoices", labelKey: "nav.invoices", icon: Receipt },
   { to: "/quotation", labelKey: "nav.quotation", icon: FileText },

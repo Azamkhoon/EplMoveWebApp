@@ -5,8 +5,10 @@ import { TENANTS, type Tenant } from "@/data/mock";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { useI18n } from "@/i18n/LanguageContext";
 
 export function Tenants() {
+  const { t: tr } = useI18n();
   const [tenants, setTenants] = useState<Tenant[]>(TENANTS);
   const [search, setSearch]   = useState("");
   const [filter, setFilter]   = useState<"all" | "shipper" | "carrier">("all");
@@ -35,7 +37,7 @@ export function Tenants() {
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/20"
-              placeholder="Search tenants…" value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder={tr("tenants.search")} value={search} onChange={(e) => setSearch(e.target.value)}
             />
           </div>
         </div>
@@ -45,7 +47,7 @@ export function Tenants() {
             <button key={f} onClick={() => setFilter(f)}
               className={cn("rounded-md px-2.5 py-1 text-[11px] font-medium capitalize transition-colors",
                 filter === f ? "bg-brand-600 text-white" : "text-slate-500 hover:bg-slate-100")}>
-              {f}
+              {f === "all" ? tr("common.all") : f === "shipper" ? "Shipper" : "Carrier"}
             </button>
           ))}
         </div>
@@ -60,15 +62,15 @@ export function Tenants() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-1">
                     <span className="truncate text-xs font-semibold text-slate-800">{t.name}</span>
-                    <Badge label={t.status} tone={t.status === "active" ? "emerald" : "red"} />
+                    <Badge label={tr(`status.${t.status}`)} tone={t.status === "active" ? "emerald" : "red"} />
                   </div>
-                  <p className="mt-0.5 text-[11px] text-slate-400 capitalize">{t.kind} · {t.memberCount} members</p>
+                  <p className="mt-0.5 text-[11px] text-slate-400 capitalize">{t.kind} · {t.memberCount} {tr("nav.users").toLocaleLowerCase()}</p>
                 </div>
               </div>
             </button>
           ))}
         </div>
-        <div className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-400">{visible.length} tenants</div>
+        <div className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-400">{visible.length} {tr("nav.tenants").toLocaleLowerCase()}</div>
       </div>
 
       {/* Detail */}
@@ -76,7 +78,7 @@ export function Tenants() {
         {!selected ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-slate-400">
             <ChevronRight size={40} className="opacity-20" />
-            <p className="text-sm">Select a tenant</p>
+            <p className="text-sm">{tr("common.view")} {tr("nav.tenants").toLocaleLowerCase()}</p>
           </div>
         ) : (
           <div className="p-6">
@@ -86,7 +88,7 @@ export function Tenants() {
                 <div>
                   <div className="mb-1 flex items-center gap-2">
                     <Badge label={selected.kind} tone={selected.kind === "shipper" ? "blue" : "teal"} />
-                    <Badge label={selected.status} tone={selected.status === "active" ? "emerald" : "red"} />
+                    <Badge label={tr(`status.${selected.status}`)} tone={selected.status === "active" ? "emerald" : "red"} />
                   </div>
                   <h2 className="text-xl font-bold text-slate-900">{selected.name}</h2>
                   <p className="font-mono text-sm text-slate-400">{selected.slug}</p>
@@ -96,19 +98,19 @@ export function Tenants() {
                 variant={selected.status === "active" ? "danger" : "secondary"}
                 size="sm"
                 onClick={() => setConfirmSuspend(selected)}>
-                {selected.status === "active" ? <><Ban size={13} /> Suspend</> : <><CheckCircle2 size={13} /> Reinstate</>}
+                {selected.status === "active" ? <><Ban size={13} /> {tr("status.suspended")}</> : <><CheckCircle2 size={13} /> {tr("status.active")}</>}
               </Button>
             </div>
 
             <div className="mb-6 grid grid-cols-2 gap-4 rounded-xl bg-slate-50 p-4 md:grid-cols-4">
-              <Stat label="Members"     value={String(selected.memberCount)} />
-              <Stat label="Loads"       value={String(selected.loadCount)} />
-              <Stat label="Shipments"   value={String(selected.shipmentCount)} />
-              <Stat label="Total Billed" value={formatCurrency(selected.invoiceTotal)} />
+              <Stat label={tr("nav.users")} value={String(selected.memberCount)} />
+              <Stat label={tr("nav.shipments")} value={String(selected.loadCount)} />
+              <Stat label={tr("nav.shipments")} value={String(selected.shipmentCount)} />
+              <Stat label={tr("overview.revenue")} value={formatCurrency(selected.invoiceTotal)} />
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Member since</p>
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{tr("tenants.joined")}</p>
               <p className="text-sm font-semibold text-slate-800">{formatDate(selected.createdAt)}</p>
             </div>
           </div>
@@ -117,17 +119,17 @@ export function Tenants() {
 
       {/* Suspend confirm */}
       <Modal open={!!confirmSuspend} onClose={() => setConfirmSuspend(null)}
-        title={confirmSuspend?.status === "active" ? "Suspend Tenant?" : "Reinstate Tenant?"}>
+        title={`${confirmSuspend?.status === "active" ? tr("status.suspended") : tr("status.active")} · ${tr("nav.tenants")}`}>
         <p className="text-sm text-slate-600 mb-5">
           {confirmSuspend?.status === "active"
             ? `Suspending ${confirmSuspend?.name} will block all logins and API access for their users.`
             : `Reinstating ${confirmSuspend?.name} will restore all access.`}
         </p>
         <div className="flex justify-end gap-3">
-          <Button variant="secondary" onClick={() => setConfirmSuspend(null)}>Cancel</Button>
+          <Button variant="secondary" onClick={() => setConfirmSuspend(null)}>{tr("common.close")}</Button>
           <Button variant={confirmSuspend?.status === "active" ? "danger" : "primary"}
             onClick={() => confirmSuspend && toggleStatus(confirmSuspend)}>
-            {confirmSuspend?.status === "active" ? "Suspend" : "Reinstate"}
+            {confirmSuspend?.status === "active" ? tr("status.suspended") : tr("status.active")}
           </Button>
         </div>
       </Modal>

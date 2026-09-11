@@ -1,11 +1,18 @@
-import { Body, Controller, Get, Post, Query, HttpCode, Headers, ForbiddenException } from "@nestjs/common";
+import { Body, Controller, Get, Post, Query, Param, HttpCode, Headers, ForbiddenException } from "@nestjs/common";
 import { z } from "zod";
 import { TenantService } from "./tenant.service";
 
 const ProvisionInput = z.object({
   userId: z.string().uuid(),
   tenantName: z.string().min(1),
-  kind: z.enum(["shipper", "carrier"]).default("shipper"),
+  vatNumber: z.string().regex(/^\d{9}$/),
+  country: z.string().min(2),
+  city: z.string().min(1),
+  address: z.string().min(3),
+  phone: z.string().min(7),
+  email: z.string().email(),
+  kind: z.enum(["shipper", "carrier", "broker"]).default("shipper"),
+  companyVerified: z.boolean().default(true),
 });
 
 /**
@@ -20,12 +27,36 @@ export class TenantInternalController {
   @HttpCode(200)
   async provision(@Body() body: unknown) {
     const input = ProvisionInput.parse(body);
-    return this.tenants.provisionTenant(input.userId, input.tenantName, input.kind);
+    return this.tenants.provisionTenant(input);
   }
 
   @Get("memberships/resolve")
-  async resolve(@Query("userId") userId: string, @Query("tenantSlug") tenantSlug?: string) {
-    return this.tenants.resolveMembership(userId, tenantSlug);
+  async resolve(
+    @Query("userId") userId: string,
+    @Query("tenantSlug") tenantSlug?: string,
+    @Query("tenantId") tenantId?: string,
+  ) {
+    return this.tenants.resolveMembership(userId, tenantSlug, tenantId);
+  }
+
+  @Get("tenants")
+  listTenants(@Query("kind") kind?: "shipper" | "carrier" | "broker") {
+    return this.tenants.listTenantsByKind(kind);
+  }
+
+  @Get("tenants/:id")
+  getTenant(@Param("id") id: string) {
+    return this.tenants.getTenant(id);
+  }
+}
+
+@Controller("directory")
+export class TenantDirectoryController {
+  constructor(private readonly tenants: TenantService) {}
+
+  @Get("tenants")
+  list(@Query("kind") kind?: "shipper" | "carrier" | "broker") {
+    return this.tenants.listTenantsByKind(kind);
   }
 }
 

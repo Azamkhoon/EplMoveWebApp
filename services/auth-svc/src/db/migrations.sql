@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS auth.sessions (
   expires_at          timestamptz NOT NULL,
   revoked_at          timestamptz
 );
+ALTER TABLE auth.sessions ADD COLUMN IF NOT EXISTS tenant_id uuid;
 CREATE INDEX IF NOT EXISTS sessions_user_idx ON auth.sessions (user_id);
 CREATE INDEX IF NOT EXISTS sessions_family_idx ON auth.sessions (family_id);
 

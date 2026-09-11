@@ -5,6 +5,7 @@ import { DECLARATIONS, CLIENTS } from "@/data/mock";
 import { Modal } from "@/components/ui/Modal";
 import { Field, Input } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
+import { useI18n } from "@/i18n/LanguageContext";
 
 type InvStatus = "draft" | "sent" | "paid" | "overdue";
 
@@ -48,6 +49,7 @@ const TABS = [
 ];
 
 export function Financials() {
+  const { t } = useI18n();
   const [invoices, setInvoices] = useState<Invoice[]>(MOCK_INVOICES);
   const [tab, setTab]           = useState("all");
   const [showCreate, setShowCreate] = useState(false);
@@ -94,28 +96,28 @@ export function Financials() {
     <div className="space-y-5">
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard icon={CheckCircle2} cls="text-emerald-600 bg-emerald-50" label="Collected"    value={formatCurrency(totalPaid, "USD")} />
-        <KpiCard icon={Clock}        cls="text-blue-600 bg-blue-50"       label="Outstanding"  value={formatCurrency(totalPending, "USD")} />
-        <KpiCard icon={AlertTriangle}cls="text-red-600 bg-red-50"         label="Overdue"      value={formatCurrency(totalOverdue, "USD")} urgent={totalOverdue > 0} />
-        <KpiCard icon={DollarSign}   cls="text-teal-600 bg-teal-50"       label="Brokerage Rev" value={formatCurrency(totalBrokerage, "USD")} />
+        <KpiCard icon={CheckCircle2} cls="text-emerald-600 bg-emerald-50" label={t("status.paid")} value={formatCurrency(totalPaid, "USD")} />
+        <KpiCard icon={Clock} cls="text-blue-600 bg-blue-50" label={t("financials.outstanding")} value={formatCurrency(totalPending, "USD")} />
+        <KpiCard icon={AlertTriangle} cls="text-red-600 bg-red-50" label={t("status.overdue")} value={formatCurrency(totalOverdue, "USD")} urgent={totalOverdue > 0} />
+        <KpiCard icon={DollarSign} cls="text-teal-600 bg-teal-50" label={t("financials.totalFees")} value={formatCurrency(totalBrokerage, "USD")} />
       </div>
 
       {/* Invoice table */}
       <div className="rounded-xl border border-slate-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
           <div className="flex gap-1">
-            {TABS.map((t) => (
-              <button key={t.key} onClick={() => setTab(t.key)}
+            {TABS.map((tabItem) => (
+              <button key={tabItem.key} onClick={() => setTab(tabItem.key)}
                 className={cn("rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
-                  tab === t.key ? "bg-teal-600 text-white" : "text-slate-500 hover:bg-slate-100")}>
-                {t.label}
+                  tab === tabItem.key ? "bg-teal-600 text-white" : "text-slate-500 hover:bg-slate-100")}>
+                {tabItem.key === "all" ? t("common.all") : t(`status.${tabItem.key === "sent" ? "pending" : tabItem.key}`)}
               </button>
             ))}
           </div>
           <button onClick={() => setShowCreate(true)}
             className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700">
             <FileText size={13} />
-            New Invoice
+            {t("financials.invoice")}
           </button>
         </div>
 
@@ -123,7 +125,7 @@ export function Financials() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100">
-                {["Invoice","Client","Declaration","Issued","Due","Duties","Brokerage","Total","Status",""].map((h) => (
+                {[t("financials.invoice"),t("common.client"),t("nav.declarations"),t("documents.uploaded"),t("financials.due"),t("duty.importDuty"),t("financials.totalFees"),t("common.total"),t("common.status"),""].map((h) => (
                   <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-slate-500">{h}</th>
                 ))}
               </tr>
@@ -143,59 +145,59 @@ export function Financials() {
                   <td className="px-5 py-3 text-sm font-semibold text-slate-900">{formatCurrency(inv.amount, inv.currency)}</td>
                   <td className="px-5 py-3">
                     <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold capitalize", INV_STATUS_CLS[inv.status])}>
-                      {inv.status}
+                      {t(`status.${inv.status === "sent" ? "pending" : inv.status}`)}
                     </span>
                   </td>
                   <td className="px-5 py-3">
                     {inv.status !== "paid" && (
                       <button onClick={() => markPaid(inv.id)}
                         className="rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700">
-                        Mark paid
+                        {t("status.paid")}
                       </button>
                     )}
                   </td>
                 </tr>
               ))}
               {visible.length === 0 && (
-                <tr><td colSpan={10} className="py-12 text-center text-sm text-slate-400">No invoices found</td></tr>
+                <tr><td colSpan={10} className="py-12 text-center text-sm text-slate-400">{t("financials.invoices")}: 0</td></tr>
               )}
             </tbody>
           </table>
         </div>
 
         <div className="border-t border-slate-100 px-5 py-2.5 text-xs text-slate-400">
-          {visible.length} invoice{visible.length !== 1 ? "s" : ""}
+          {visible.length} {t("financials.invoices").toLocaleLowerCase()}
         </div>
       </div>
 
       {/* Create modal */}
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New Invoice">
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t("financials.invoice")}>
         <div className="space-y-4">
-          <Field label="Client">
+          <Field label={t("common.client")}>
             <select value={form.clientId ?? ""} onChange={(e) => patch({ clientId: e.target.value })} className="input-base">
               <option value="">Select client…</option>
               {CLIENTS.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </Field>
-          <Field label="Declaration">
+          <Field label={t("nav.declarations")}>
             <select value={form.declarationRef ?? ""} onChange={(e) => patch({ declarationRef: e.target.value })} className="input-base">
               <option value="">Select declaration…</option>
               {DECLARATIONS.map((d) => <option key={d.id} value={d.id}>{d.reference} — {d.clientName}</option>)}
             </select>
           </Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Currency">
+            <Field label={t("duty.currency")}>
               <select value={form.currency ?? "USD"} onChange={(e) => patch({ currency: e.target.value })} className="input-base">
                 <option>USD</option><option>EUR</option><option>GBP</option>
               </select>
             </Field>
-            <Field label="Due Date">
+            <Field label={t("financials.due")}>
               <Input type="date" value={form.dueDate ?? ""} onChange={(e) => patch({ dueDate: e.target.value })} />
             </Field>
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button onClick={createInvoice} disabled={!form.clientId}>Create Invoice</Button>
+            <Button variant="secondary" onClick={() => setShowCreate(false)}>{t("common.cancel")}</Button>
+            <Button onClick={createInvoice} disabled={!form.clientId}>{t("financials.invoice")}</Button>
           </div>
         </div>
       </Modal>

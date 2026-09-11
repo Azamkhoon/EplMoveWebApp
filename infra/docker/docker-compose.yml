@@ -36,16 +36,16 @@ services:
       timeout: 3s
       retries: 10
 
-  # Google Pub/Sub emulator — services point PUBSUB_EMULATOR_HOST=localhost:8085
+  # Google Pub/Sub emulator. Host port 8681 deliberately avoids quote-svc :8085.
   pubsub:
     image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
     container_name: epl-pubsub
     command: >
       gcloud beta emulators pubsub start
       --project=epl-move-local
-      --host-port=0.0.0.0:8085
+      --host-port=0.0.0.0:8681
     ports:
-      - "8085:8085"
+      - "8681:8681"
 
 volumes:
   pgdata:

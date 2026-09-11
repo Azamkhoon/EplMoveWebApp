@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   UseGuards,
   UseInterceptors,
@@ -55,6 +57,16 @@ export class QuoteController {
   ) {
     return this.quotes.acceptBid(ctx, id, bidId);
   }
+
+  @Post(":id/bids/:bidId/reject")
+  @RequirePermissions("quote:accept")
+  reject(
+    @Ctx() ctx: RequestContext,
+    @Param("id") id: string,
+    @Param("bidId") bidId: string,
+  ) {
+    return this.quotes.rejectBid(ctx, id, bidId);
+  }
 }
 
 /**
@@ -84,5 +96,17 @@ export class MarketplaceController {
   @RequirePermissions("carrier:bid")
   bid(@Ctx() ctx: RequestContext, @Param("id") id: string, @Body() body: unknown) {
     return this.quotes.submitCarrierBid(ctx, id, body);
+  }
+
+  @Patch("bids/:id")
+  @RequirePermissions("carrier:bid")
+  updateBid(@Ctx() ctx: RequestContext, @Param("id") id: string, @Body() body: unknown) {
+    return this.quotes.updateCarrierBid(ctx, id, body);
+  }
+
+  @Delete("bids/:id")
+  @RequirePermissions("carrier:bid")
+  withdrawBid(@Ctx() ctx: RequestContext, @Param("id") id: string) {
+    return this.quotes.withdrawCarrierBid(ctx, id);
   }
 }

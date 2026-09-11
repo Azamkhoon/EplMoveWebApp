@@ -72,7 +72,7 @@ export function Quotation() {
             <CardBody className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
               <p className="text-sm text-slate-600">
                 <span className="font-semibold text-slate-900">Live mode:</span> request real carrier
-                bids from your posted loads in the Marketplace — compare rates, transit and ratings,
+                bids from your posted loads on the Transport Board — compare rates, transit and ratings,
                 then accept to create a shipment.
               </p>
               <Button size="sm" onClick={() => navigate("/marketplace")}>

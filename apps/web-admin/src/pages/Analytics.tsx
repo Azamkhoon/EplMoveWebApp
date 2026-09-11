@@ -2,6 +2,7 @@ import { TrendingUp, Building2, Package, DollarSign } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { TENANTS, INVOICES } from "@/data/mock";
+import { useI18n } from "@/i18n/LanguageContext";
 
 const MONTHLY = [
   { month: "Jan", tenants: 2,  shipments: 8,  revenue: 28000,  mrr: 2100  },
@@ -22,6 +23,7 @@ const maxRev = Math.max(...MONTHLY.map((m) => m.revenue));
 const maxShip = Math.max(...MONTHLY.map((m) => m.shipments));
 
 export function Analytics() {
+  const { t: tr } = useI18n();
   const tenantsByKind = {
     shipper: TENANTS.filter((t) => t.kind === "shipper").length,
     carrier: TENANTS.filter((t) => t.kind === "carrier").length,
@@ -33,16 +35,16 @@ export function Analytics() {
     <div className="space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard icon={Building2}  cls="bg-blue-50 text-blue-600"    label="Total Tenants"   value={String(totalTenants)}  sub={`${activeTenants} active`} />
-        <KpiCard icon={Package}    cls="bg-violet-50 text-violet-600" label="Total Shipments"  value={String(totalShipments)} sub="all time" />
-        <KpiCard icon={DollarSign} cls="bg-emerald-50 text-emerald-600" label="Total Revenue"  value={formatCurrency(totalRevenue)} sub="all invoices" />
-        <KpiCard icon={TrendingUp} cls="bg-brand-50 text-brand-600"  label="Avg / Tenant"    value={formatCurrency(avgRevenuePerTenant)} sub="revenue" />
+        <KpiCard icon={Building2} cls="bg-blue-50 text-blue-600" label={tr("overview.tenants")} value={String(totalTenants)} sub={`${activeTenants} ${tr("common.active").toLocaleLowerCase()}`} />
+        <KpiCard icon={Package} cls="bg-violet-50 text-violet-600" label={tr("overview.shipments")} value={String(totalShipments)} sub={tr("common.all")} />
+        <KpiCard icon={DollarSign} cls="bg-emerald-50 text-emerald-600" label={tr("overview.revenue")} value={formatCurrency(totalRevenue)} sub={tr("nav.invoices")} />
+        <KpiCard icon={TrendingUp} cls="bg-brand-50 text-brand-600" label={`${tr("overview.revenue")} / ${tr("nav.tenants")}`} value={formatCurrency(avgRevenuePerTenant)} sub={tr("overview.revenue")} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Revenue over time */}
         <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="mb-4 font-semibold text-slate-800">Revenue Growth</h2>
+          <h2 className="mb-4 font-semibold text-slate-800">{tr("analytics.revenue")}</h2>
           <div className="flex h-32 items-end gap-2">
             {MONTHLY.map((m) => (
               <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
@@ -60,7 +62,7 @@ export function Analytics() {
 
         {/* Shipments over time */}
         <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="mb-4 font-semibold text-slate-800">Monthly Shipments</h2>
+          <h2 className="mb-4 font-semibold text-slate-800">{tr("analytics.shipments")}</h2>
           <div className="flex h-32 items-end gap-2">
             {MONTHLY.map((m) => (
               <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
@@ -80,7 +82,7 @@ export function Analytics() {
       {/* Tenant mix + top tenants */}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="mb-4 font-semibold text-slate-800">Tenant Mix</h2>
+          <h2 className="mb-4 font-semibold text-slate-800">{tr("analytics.tenantMix")}</h2>
           <div className="space-y-3">
             {[
               { label: "Shippers", count: tenantsByKind.shipper, color: "bg-blue-500",   pct: Math.round(tenantsByKind.shipper / totalTenants * 100) },
@@ -111,7 +113,7 @@ export function Analytics() {
 
         {/* Top tenants by revenue */}
         <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="mb-4 font-semibold text-slate-800">Top Tenants by Revenue</h2>
+          <h2 className="mb-4 font-semibold text-slate-800">{tr("analytics.topTenants")}</h2>
           <div className="space-y-3">
             {topTenants.map((t, i) => (
               <div key={t.id} className="flex items-center gap-4">

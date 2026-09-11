@@ -12,6 +12,11 @@ CREATE TABLE IF NOT EXISTS notify.notifications (
   read        boolean NOT NULL DEFAULT false,
   created_at  timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE notify.notifications ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE notify.notifications ADD COLUMN IF NOT EXISTS company_id uuid;
+ALTER TABLE notify.notifications ADD COLUMN IF NOT EXISTS shipment_id uuid;
+ALTER TABLE notify.notifications ADD COLUMN IF NOT EXISTS reference_id uuid;
+UPDATE notify.notifications SET company_id=tenant_id WHERE company_id IS NULL;
 CREATE INDEX IF NOT EXISTS notifications_tenant_idx ON notify.notifications (tenant_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS notify.processed_events (
@@ -19,14 +24,21 @@ CREATE TABLE IF NOT EXISTS notify.processed_events (
   processed_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS notify.processed_deliveries (
+  event_id       uuid NOT NULL,
+  tenant_id      uuid NOT NULL,
+  recipient_key  text NOT NULL,
+  processed_at   timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (event_id, tenant_id, recipient_key)
+);
+
 ALTER TABLE notify.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notify.notifications FORCE ROW LEVEL SECURITY;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='notify' AND tablename='notifications' AND policyname='tenant_isolation') THEN
-    CREATE POLICY tenant_isolation ON notify.notifications
-      USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
-      WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
-  END IF;
+  DROP POLICY IF EXISTS tenant_isolation ON notify.notifications;
+  CREATE POLICY tenant_isolation ON notify.notifications
+    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid)
+    WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);
 END$$;

@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS quote.quotes (
   created_at  timestamptz NOT NULL DEFAULT now(),
   expires_at  timestamptz
 );
+ALTER TABLE quote.quotes ADD COLUMN IF NOT EXISTS load_snapshot jsonb;
 CREATE INDEX IF NOT EXISTS quotes_tenant_idx ON quote.quotes (tenant_id);
 CREATE UNIQUE INDEX IF NOT EXISTS quotes_tenant_load_uidx ON quote.quotes (tenant_id, load_id);
 
@@ -29,8 +30,17 @@ CREATE TABLE IF NOT EXISTS quote.bids (
   status       text NOT NULL DEFAULT 'submitted',
   created_at   timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE quote.bids ADD COLUMN IF NOT EXISTS equipment text;
+ALTER TABLE quote.bids ADD COLUMN IF NOT EXISTS truck_info text;
+ALTER TABLE quote.bids ADD COLUMN IF NOT EXISTS comment text;
+ALTER TABLE quote.bids ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 CREATE INDEX IF NOT EXISTS bids_quote_idx ON quote.bids (quote_id);
 CREATE INDEX IF NOT EXISTS bids_tenant_idx ON quote.bids (tenant_id);
+
+CREATE TABLE IF NOT EXISTS quote.processed_events (
+  event_id uuid PRIMARY KEY,
+  processed_at timestamptz NOT NULL DEFAULT now()
+);
 
 CREATE TABLE IF NOT EXISTS quote.outbox (
   id            uuid PRIMARY KEY,
@@ -102,5 +112,17 @@ BEGIN
       current_setting('app.marketplace', true) = 'on'
       AND carrier_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
       AND status = 'submitted'
+    );
+  DROP POLICY IF EXISTS marketplace_update_own_bid ON quote.bids;
+  CREATE POLICY marketplace_update_own_bid ON quote.bids
+    FOR UPDATE
+    USING (
+      current_setting('app.marketplace', true) = 'on'
+      AND carrier_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
+      AND status = 'submitted'
+    )
+    WITH CHECK (
+      current_setting('app.marketplace', true) = 'on'
+      AND carrier_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
     );
 END$$;

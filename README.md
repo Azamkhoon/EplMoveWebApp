@@ -6,6 +6,8 @@ Multi-sided logistics platform (Shipper, Carrier, Broker, Admin, Driver) built a
 > **Architecture is documented in [`docs/architecture/`](docs/architecture/)** — start with
 > [`01-overview.md`](docs/architecture/01-overview.md). Decisions are locked and approved; the code
 > is being built phase-by-phase per [`07-roadmap.md`](docs/architecture/07-roadmap.md).
+> The connected Shipper/Carrier/Broker workflow and local runbook are in
+> [`08-unified-portals.md`](docs/architecture/08-unified-portals.md).
 
 ## Layout
 
@@ -38,10 +40,9 @@ pnpm dev:shipper
 ```
 
 ## Status
-- ✅ **Phase 0** — monorepo foundation: workspace tooling, SPA absorbed as `apps/web-shipper`,
-  shared packages stubbed, all 12 services scaffolded (boot + `/health`), local docker-compose.
-- ⏳ **Phase 1** — identity + first vertical slice (`auth-svc`, `tenant-svc`, `load-svc`,
-  `api-gateway`) and wiring the SPA's Post-Load flow to the real API. *Not started — awaiting go.*
 
-The `web-shipper` SPA still runs entirely on **mock data** until `VITE_API_URL` is set; the backend
-build does not affect it.
+The Shipper, Carrier, and Customs Broker portals are connected through the API
+gateway and shared persistent service schemas. Set `VITE_API_URL` in each portal
+to use live identity, loads, bids, bookings, shipments, document requests,
+messages, notifications, and tracking data. Some secondary analytics and admin
+screens still use presentation fixtures where no analytics aggregate exists.

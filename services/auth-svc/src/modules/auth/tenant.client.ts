@@ -20,7 +20,14 @@ export class TenantClient {
   async provisionTenant(input: {
     userId: string;
     tenantName: string;
-    kind?: "shipper" | "carrier";
+    vatNumber: string;
+    country: string;
+    city: string;
+    address: string;
+    phone: string;
+    email: string;
+    kind?: "shipper" | "carrier" | "broker";
+    companyVerified: boolean;
   }): Promise<ResolvedMembership> {
     const res = await fetch(`${this.base}/internal/tenants/provision`, {
       method: "POST",
@@ -35,9 +42,11 @@ export class TenantClient {
   async resolveMembership(input: {
     userId: string;
     tenantSlug?: string;
+    tenantId?: string;
   }): Promise<ResolvedMembership | null> {
     const qs = new URLSearchParams({ userId: input.userId });
     if (input.tenantSlug) qs.set("tenantSlug", input.tenantSlug);
+    if (input.tenantId) qs.set("tenantId", input.tenantId);
     const res = await fetch(`${this.base}/internal/memberships/resolve?${qs}`);
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`membership resolve failed: ${res.status}`);

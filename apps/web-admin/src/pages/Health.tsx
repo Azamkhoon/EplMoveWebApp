@@ -2,8 +2,10 @@ import { useState } from "react";
 import { CheckCircle2, AlertTriangle, XCircle, RefreshCw, type LucideIcon } from "lucide-react";
 import { cn, formatDateTime } from "@/lib/utils";
 import { SERVICE_HEALTH, type ServiceHealth } from "@/data/mock";
+import { useI18n } from "@/i18n/LanguageContext";
 
 export function Health() {
+  const { t } = useI18n();
   const [services, setServices] = useState<ServiceHealth[]>(SERVICE_HEALTH);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -24,9 +26,9 @@ export function Health() {
     <div className="space-y-6">
       {/* Summary */}
       <div className="grid grid-cols-3 gap-4">
-        <SummaryCard icon={CheckCircle2} cls="bg-emerald-50 text-emerald-600 border-emerald-200" label="Healthy"  value={up} />
-        <SummaryCard icon={AlertTriangle}cls="bg-amber-50 text-amber-600 border-amber-200"       label="Degraded" value={degraded} />
-        <SummaryCard icon={XCircle}      cls="bg-red-50 text-red-600 border-red-200"             label="Down"     value={down} />
+        <SummaryCard icon={CheckCircle2} cls="bg-emerald-50 text-emerald-600 border-emerald-200" label={t("status.operational")}  value={up} />
+        <SummaryCard icon={AlertTriangle}cls="bg-amber-50 text-amber-600 border-amber-200"       label={t("status.degraded")} value={degraded} />
+        <SummaryCard icon={XCircle}      cls="bg-red-50 text-red-600 border-red-200"             label={t("status.down")}     value={down} />
       </div>
 
       {/* Banner if degraded */}
@@ -34,7 +36,7 @@ export function Health() {
         <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
           <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-600" />
           <div className="flex-1">
-            <p className="text-sm font-semibold text-amber-800">Service degradation detected</p>
+            <p className="text-sm font-semibold text-amber-800">{t("page.health.title")}: {t("status.degraded")}</p>
             <p className="text-xs text-amber-700">
               {services.filter((s) => s.status === "degraded").map((s) => s.name).join(", ")} — elevated latency. Investigate before next deploy.
             </p>
@@ -42,7 +44,7 @@ export function Health() {
           <button onClick={refresh} disabled={refreshing}
             className="flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-60">
             <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
-            {refreshing ? "Checking…" : "Re-check"}
+            {refreshing ? t("common.loading") : t("health.lastChecked")}
           </button>
         </div>
       )}
@@ -61,9 +63,9 @@ export function Health() {
             </div>
 
             <div className="mb-3 grid grid-cols-3 gap-2 text-center">
-              <Metric label="Latency" value={`${s.latencyMs}ms`} warn={s.latencyMs > 100} />
-              <Metric label="Uptime"  value={`${s.uptimePct}%`}  warn={s.uptimePct < 99} />
-              <Metric label="Checked" value={formatDateTime(s.lastChecked).split(",")[1]?.trim() ?? "—"} />
+              <Metric label={t("health.latency")} value={`${s.latencyMs}ms`} warn={s.latencyMs > 100} />
+              <Metric label={t("health.uptime")}  value={`${s.uptimePct}%`}  warn={s.uptimePct < 99} />
+              <Metric label={t("health.lastChecked")} value={formatDateTime(s.lastChecked).split(",")[1]?.trim() ?? "—"} />
             </div>
 
             {/* Uptime bar */}
@@ -80,10 +82,11 @@ export function Health() {
 }
 
 function StatusPill({ status }: { status: ServiceHealth["status"] }) {
+  const { t } = useI18n();
   const cfg = {
-    up:       { cls: "bg-emerald-100 text-emerald-700", label: "UP",       icon: <CheckCircle2 size={11} /> },
-    degraded: { cls: "bg-amber-100 text-amber-700",     label: "DEGRADED", icon: <AlertTriangle size={11} /> },
-    down:     { cls: "bg-red-100 text-red-700",         label: "DOWN",     icon: <XCircle size={11} /> },
+    up:       { cls: "bg-emerald-100 text-emerald-700", label: t("status.operational"), icon: <CheckCircle2 size={11} /> },
+    degraded: { cls: "bg-amber-100 text-amber-700",     label: t("status.degraded"), icon: <AlertTriangle size={11} /> },
+    down:     { cls: "bg-red-100 text-red-700",         label: t("status.down"), icon: <XCircle size={11} /> },
   }[status];
   return (
     <span className={cn("flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold", cfg.cls)}>

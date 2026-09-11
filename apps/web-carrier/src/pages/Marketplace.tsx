@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/Misc";
 import { api } from "@/api/client";
 import { ApiError, type MarketplaceQuote } from "@epl/sdk";
 import { formatCurrency, relativeTime } from "@/lib/utils";
+import { useI18n } from "@/i18n/LanguageContext";
 
 const MODES = ["All", "Ocean", "Air", "Road", "Rail", "Multimodal"];
 
@@ -21,6 +22,7 @@ const MODE_TONE: Record<string, "blue" | "slate" | "amber" | "green" | "navy"> =
 };
 
 export function Marketplace() {
+  const { t } = useI18n();
   const [quotes, setQuotes]   = useState<MarketplaceQuote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
@@ -32,6 +34,8 @@ export function Marketplace() {
   const [days, setDays]       = useState("");
   const [co2, setCo2]         = useState("");
   const [notes, setNotes]     = useState("");
+  const [equipment, setEquipment] = useState("");
+  const [truckInfo, setTruckInfo] = useState("");
   const [busy, setBusy]       = useState(false);
   const [placed, setPlaced]   = useState(false);
   const [bidErr, setBidErr]   = useState<string | null>(null);
@@ -59,6 +63,8 @@ export function Marketplace() {
     setDays("");
     setCo2("");
     setNotes("");
+    setEquipment(q.equipmentCode ?? "");
+    setTruckInfo("");
   }
 
   async function submit() {
@@ -69,6 +75,9 @@ export function Marketplace() {
       await api.submitMarketplaceBid(bidding.id, {
         price: { amount: Number(price), currency: "USD" },
         transitDays: Number(days),
+        equipment: equipment || undefined,
+        truckInfo: truckInfo || undefined,
+        comment: notes || undefined,
         co2Kg: co2 ? Number(co2) : undefined,
       });
       setPlaced(true);
@@ -82,7 +91,13 @@ export function Marketplace() {
 
   const filtered = quotes.filter((q) => {
     const matchMode = modeFilter === "All" || q.mode === modeFilter;
-    const matchSearch = !search || q.reference.toLowerCase().includes(search.toLowerCase());
+    const needle = search.toLowerCase();
+    const matchSearch =
+      !search ||
+      q.reference.toLowerCase().includes(needle) ||
+      q.origin.toLowerCase().includes(needle) ||
+      q.destination.toLowerCase().includes(needle) ||
+      q.commodity.toLowerCase().includes(needle);
     return matchMode && matchSearch;
   });
 
@@ -97,7 +112,7 @@ export function Marketplace() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search reference…"
+            placeholder={t("market.search")}
             className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
           {search && (
@@ -118,7 +133,7 @@ export function Marketplace() {
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
               }`}
             >
-              {m}
+              {m === "All" ? t("common.all") : m}
             </button>
           ))}
         </div>
@@ -129,7 +144,7 @@ export function Marketplace() {
             {myBidCount > 0 && <span className="ml-1.5 text-brand-600">· {myBidCount} with your bid</span>}
           </span>
           <Button variant="outline" size="sm" onClick={() => void load()}>
-            <RefreshCw size={14} /> Refresh
+            <RefreshCw size={14} /> {t("common.loading")}
           </Button>
         </div>
       </div>
@@ -141,16 +156,16 @@ export function Marketplace() {
       <Card>
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-20 text-sm text-slate-400">
-            <Loader2 size={16} className="animate-spin" /> Loading marketplace…
+            <Loader2 size={16} className="animate-spin" /> {t("market.loading")}
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={<Store size={22} />}
-            title={search || modeFilter !== "All" ? "No loads match your filters" : "No open loads right now"}
-            description="When shippers request quotes, their loads appear here."
+            title={t("market.noLoads")}
+            description={t("market.noLoadsHint")}
             action={
               (search || modeFilter !== "All") ? (
-                <Button variant="outline" size="sm" onClick={() => { setSearch(""); setMode("All"); }}>Clear filters</Button>
+                <Button variant="outline" size="sm" onClick={() => { setSearch(""); setMode("All"); }}>{t("common.all")}</Button>
               ) : undefined
             }
           />
@@ -159,19 +174,26 @@ export function Marketplace() {
             <table className="w-full min-w-[800px] text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-left text-[11px] uppercase tracking-wide text-slate-400">
-                  <th className="px-5 py-3 font-medium">Reference</th>
-                  <th className="px-4 py-3 font-medium">Mode</th>
+                  <th className="px-5 py-3 font-medium">{t("common.shipment")}</th>
+                  <th className="px-4 py-3 font-medium">{t("shipments.mode")}</th>
                   <th className="px-4 py-3 font-medium">Posted</th>
-                  <th className="px-4 py-3 font-medium">Bids</th>
-                  <th className="px-4 py-3 font-medium text-right">Best price</th>
-                  <th className="px-4 py-3 font-medium">Your bid</th>
-                  <th className="px-4 py-3 font-medium text-right">Action</th>
+                  <th className="px-4 py-3 font-medium">{t("nav.bids")}</th>
+                  <th className="px-4 py-3 font-medium text-right">{t("market.price")}</th>
+                  <th className="px-4 py-3 font-medium">{t("nav.bids")}</th>
+                  <th className="px-4 py-3 font-medium text-right">{t("common.actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filtered.map((q) => (
                   <tr key={q.id} className="transition hover:bg-slate-50">
-                    <td className="px-5 py-3.5 font-semibold text-slate-900">{q.reference}</td>
+                    <td className="px-5 py-3.5">
+                      <p className="font-semibold text-slate-900">{q.reference}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">{q.origin} → {q.destination}</p>
+                      <p className="mt-0.5 text-[11px] text-slate-400">
+                        {q.commodity} · {q.weightKg.toLocaleString()} kg
+                        {q.equipmentCode ? ` · ${q.equipmentCode}` : ""}
+                      </p>
+                    </td>
                     <td className="px-4 py-3.5">
                       <Badge tone={MODE_TONE[q.mode] ?? "slate"}>{q.mode}</Badge>
                     </td>
@@ -196,7 +218,7 @@ export function Marketplace() {
                         variant={q.myBidCount > 0 ? "outline" : "primary"}
                         onClick={() => openBid(q)}
                       >
-                        {q.myBidCount > 0 ? "Update bid" : "Bid now"}
+                        {q.myBidCount > 0 ? t("market.quote") : t("market.submit")}
                       </Button>
                     </td>
                   </tr>
@@ -211,17 +233,17 @@ export function Marketplace() {
       <Modal
         open={!!bidding}
         onClose={() => setBidding(null)}
-        title={placed ? "Bid submitted" : `Bid on ${bidding?.reference ?? ""}`}
+        title={placed ? t("market.bidSubmitted") : `${t("market.quote")} · ${bidding?.reference ?? ""}`}
         subtitle={placed ? undefined : `${bidding?.mode} · ${bidding?.bidCount ?? 0} competing bid(s)`}
         size="md"
         footer={
           placed ? (
-            <Button onClick={() => setBidding(null)}>Done</Button>
+            <Button onClick={() => setBidding(null)}>{t("common.confirm")}</Button>
           ) : (
             <>
-              <Button variant="outline" onClick={() => setBidding(null)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setBidding(null)}>{t("common.cancel")}</Button>
               <Button disabled={busy || !price || !days} onClick={() => void submit()}>
-                {busy ? <Loader2 size={15} className="animate-spin" /> : "Submit bid"}
+                {busy ? <Loader2 size={15} className="animate-spin" /> : t("market.submit")}
               </Button>
             </>
           )
@@ -240,6 +262,16 @@ export function Marketplace() {
           </div>
         ) : (
           <div className="space-y-4">
+            {bidding && (
+              <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600 ring-1 ring-slate-200">
+                <p className="font-semibold text-slate-800">{bidding.origin} → {bidding.destination}</p>
+                <p className="mt-1">{bidding.commodity} · {bidding.weightKg.toLocaleString()} kg</p>
+                <p className="mt-1">
+                  Pickup {bidding.readyDate ? new Date(bidding.readyDate).toLocaleDateString() : "TBD"}
+                  {bidding.requiredDeliveryDate ? ` · Delivery ${new Date(bidding.requiredDeliveryDate).toLocaleDateString()}` : ""}
+                </p>
+              </div>
+            )}
             {bidding?.bestPrice != null && (
               <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-xs text-amber-700 ring-1 ring-amber-200">
                 <Clock size={13} className="shrink-0" />
@@ -249,18 +281,26 @@ export function Marketplace() {
             {bidErr && (
               <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">{bidErr}</div>
             )}
-            <Field label="Your all-in rate (USD)">
+            <Field label={t("market.price")}>
               <Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="8200" />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Transit time (days)">
+              <Field label={t("market.transit")}>
                 <Input type="number" value={days} onChange={(e) => setDays(e.target.value)} placeholder="28" />
               </Field>
               <Field label="CO₂ kg (optional)">
                 <Input type="number" value={co2} onChange={(e) => setCo2(e.target.value)} placeholder="3400" />
               </Field>
             </div>
-            <Field label="Notes (optional)" hint="Visible to the shipper when reviewing bids">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Equipment / trailer">
+                <Input value={equipment} onChange={(e) => setEquipment(e.target.value)} placeholder="Standard Tent" />
+              </Field>
+              <Field label="Truck information">
+                <Input value={truckInfo} onChange={(e) => setTruckInfo(e.target.value)} placeholder="Plate / unit" />
+              </Field>
+            </div>
+            <Field label={t("market.notes")} hint={t("market.notes")}>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}

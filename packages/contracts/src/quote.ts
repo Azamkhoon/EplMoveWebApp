@@ -25,10 +25,14 @@ export const Bid = z.object({
   mode: TransportMode,
   price: Money,
   transitDays: z.number().int().positive(),
+  equipment: z.string().optional(),
+  truckInfo: z.string().optional(),
+  comment: z.string().max(2000).optional(),
   co2Kg: z.number().nonnegative().optional(),
   validUntil: z.string().datetime().optional(),
   status: BidStatus,
   createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
 });
 export type Bid = z.infer<typeof Bid>;
 
@@ -61,6 +65,9 @@ export const SubmitBidInput = z.object({
   mode: TransportMode,
   price: Money,
   transitDays: z.number().int().positive(),
+  equipment: z.string().max(200).optional(),
+  truckInfo: z.string().max(500).optional(),
+  comment: z.string().max(2000).optional(),
   co2Kg: z.number().nonnegative().optional(),
   validUntil: z.string().datetime().optional(),
 });
@@ -78,6 +85,18 @@ export const MarketplaceQuote = z.object({
   bidCount: z.number().int().nonnegative(),
   myBidCount: z.number().int().nonnegative(),
   bestPrice: z.number().nonnegative().optional(),
+  shipperName: z.string().optional(),
+  origin: z.string(),
+  destination: z.string(),
+  pickup: z.unknown().optional(),
+  delivery: z.unknown().optional(),
+  commodity: z.string(),
+  weightKg: z.number().nonnegative(),
+  volumeM3: z.number().nonnegative().optional(),
+  equipmentCode: z.string().optional(),
+  readyDate: z.string().datetime().optional(),
+  requiredDeliveryDate: z.string().datetime().optional(),
+  loadStatus: z.string(),
 });
 export type MarketplaceQuote = z.infer<typeof MarketplaceQuote>;
 
@@ -86,10 +105,19 @@ export const CarrierBidInput = z.object({
   mode: TransportMode.optional(), // defaults to the quote's mode
   price: Money,
   transitDays: z.number().int().positive(),
+  equipment: z.string().max(200).optional(),
+  truckInfo: z.string().max(500).optional(),
+  comment: z.string().max(2000).optional(),
   co2Kg: z.number().nonnegative().optional(),
   validUntil: z.string().datetime().optional(),
 });
 export type CarrierBidInput = z.infer<typeof CarrierBidInput>;
+
+export const UpdateCarrierBidInput = CarrierBidInput.partial().refine(
+  (value) => Object.keys(value).length > 0,
+  "at least one bid field is required",
+);
+export type UpdateCarrierBidInput = z.infer<typeof UpdateCarrierBidInput>;
 
 /** A carrier's own bid, with the quote reference + status for "My Bids". */
 export const CarrierBid = Bid.extend({

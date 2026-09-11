@@ -1,6 +1,6 @@
-# Phase 1 Dev Runbook
+# Unified Platform Dev Runbook
 
-Run the identity + load vertical slice locally end-to-end.
+Run the connected Shipper, Carrier, and Customs Broker workflow locally.
 
 ## 0. Prereqs
 - Node 24 (`nvm use`), pnpm 9 (`corepack enable`), Docker running.
@@ -31,7 +31,7 @@ pnpm infra:up        # Postgres, Redis, Pub/Sub emulator
 
 ## 3. Run migrations (each owning service)
 ```bash
-for s in tenant-svc auth-svc load-svc carrier-svc quote-svc shipment-svc tracking-svc doc-svc; do
+for s in tenant-svc auth-svc load-svc carrier-svc quote-svc shipment-svc tracking-svc doc-svc billing-svc notify-svc; do
   pnpm --filter @epl/$s build && pnpm --filter @epl/$s migrate
 done
 ```
@@ -48,6 +48,8 @@ pnpm --filter @epl/shipment-svc dev   # :8086  (subscribes to bid.accepted)
 pnpm --filter @epl/tracking-svc dev   # :8087  (subscribes to shipment.created; WS /ws/tracking)
 pnpm --filter @epl/doc-svc      dev   # :8088  (local file storage by default)
 pnpm --filter @epl/genius-svc   dev   # :8089  (KB by default; set GENIUS_LLM_URL for live LLM/web search)
+pnpm --filter @epl/billing-svc  dev   # :8090
+pnpm --filter @epl/notify-svc   dev   # :8091  (notifications + WS)
 pnpm --filter @epl/api-gateway  dev   # :8080  (public ingress; proxies WS)
 ```
 genius-svc is stateless (no migration). To use a real LLM/web-search provider,
@@ -60,11 +62,11 @@ is set (authenticated), falling back to `VITE_GENIUS_API_URL`, then offline KB.
 ```bash
 bash scripts/verify-phase1.sh   # identity + load CRUD/state machine
 bash scripts/verify-phase2.sh   # quote → bids → accept → event → shipment
-pnpm verify:inproc              # no Docker: real Postgres engine (PGlite), phases 1–3
+pnpm verify:inproc              # no Docker: migrations + unified workflow on PGlite
 ```
 `verify:inproc` runs all services' real migration SQL against an in-process
-Postgres (RLS, sequences, state machine, tracking math, doc lifecycle) + an
-in-memory bus — 42 checks, no infra needed. The .sh scripts add the real
+Postgres (RLS, sequences, state machine, booking, broker assignment, tracking,
+document requests and notifications) + an in-memory bus. The .sh scripts add the real
 Pub/Sub + cross-process HTTP paths once Docker is up.
 Phase 1: register → post load → list → duplicate → cancel → 401 on tampered token.
 Phase 2: post load → request quotes (auto carrier bids) → compare → accept cheapest
@@ -72,7 +74,9 @@ Phase 2: post load → request quotes (auto carrier bids) → compare → accept
 
 ## 6. Run the SPA against the real backend
 ```bash
-echo 'VITE_API_URL=http://localhost:8080' >> apps/web-shipper/.env.local
-pnpm dev:shipper     # http://localhost:5173 — now shows the login gate
+printf 'VITE_API_URL=http://localhost:8080\n' > apps/web-shipper/.env.local
+printf 'VITE_API_URL=http://localhost:8080\n' > apps/web-carrier/.env.local
+printf 'VITE_API_URL=http://localhost:8080\n' > apps/web-broker/.env.local
+pnpm dev:portals
 ```
-Leave `VITE_API_URL` unset to keep the SPA in mock mode (no backend needed).
+The checked-in `.env.local` files already use this gateway URL for local development.

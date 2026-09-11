@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Field, Input, Select } from "@/components/ui/Field";
+import { useI18n } from "@/i18n/LanguageContext";
 
 type DriverStatus = "available" | "assigned" | "driving" | "resting" | "inactive";
 
@@ -41,6 +42,7 @@ const STATUS_META: Record<DriverStatus, { label: string; tone: "green" | "blue" 
 };
 
 export function Drivers() {
+  const { t } = useI18n();
   const [drivers, setDrivers]   = useState<Driver[]>(INITIAL);
   const [search, setSearch]     = useState("");
   const [statusFilter, setStatusFilter] = useState<DriverStatus | "all">("all");
@@ -96,10 +98,10 @@ export function Drivers() {
     <div className="space-y-5">
       {/* Summary */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Pill label="Total drivers"  value={drivers.length}  color="text-slate-900"    />
-        <Pill label="Available"      value={available}       color="text-emerald-600"  />
-        <Pill label="On duty"        value={onDuty}          color="text-blue-600"     />
-        <Pill label="Avg. on-time"   value={`${Math.round(drivers.reduce((s,d)=>s+d.onTime,0)/drivers.length)}%`} color="text-brand-600" />
+        <Pill label={t("nav.drivers")} value={drivers.length} color="text-slate-900" />
+        <Pill label={t("status.available")} value={available} color="text-emerald-600" />
+        <Pill label={t("status.driving")} value={onDuty} color="text-blue-600" />
+        <Pill label={t("analytics.onTimeRate")} value={`${Math.round(drivers.reduce((s,d)=>s+d.onTime,0)/drivers.length)}%`} color="text-brand-600" />
       </div>
 
       {/* Toolbar */}
@@ -109,7 +111,7 @@ export function Drivers() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name…"
+            placeholder={t("drivers.search")}
             className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 text-sm placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
         </div>
@@ -122,12 +124,12 @@ export function Drivers() {
                 statusFilter === s ? "bg-brand-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50"
               }`}
             >
-              {s === "all" ? "All" : STATUS_META[s].label}
+              {s === "all" ? t("common.all") : t(`status.${s}`)}
             </button>
           ))}
         </div>
         <Button className="ml-auto" size="sm" onClick={openAdd}>
-          <Plus size={15} /> Add driver
+          <Plus size={15} /> {t("drivers.add")}
         </Button>
       </div>
 
@@ -170,7 +172,7 @@ export function Drivers() {
                 <div className="flex items-center gap-2">
                   <Badge tone={meta.tone}>
                     <span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${meta.dot}`} />
-                    {meta.label}
+                    {t(`status.${selected.status}`)}
                   </Badge>
                   <Button variant="outline" size="sm" onClick={() => openEdit(selected)}>Edit</Button>
                   <Button variant={selected.status === "inactive" ? "subtle" : "ghost"} size="sm" onClick={() => toggleActive(selected)}>
@@ -181,9 +183,9 @@ export function Drivers() {
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 {/* Contact */}
-                <Section title="Contact">
-                  <Row label="Phone"  value={<a href={`tel:${selected.phone}`} className="flex items-center gap-1 text-brand-600 hover:underline"><Phone size={12}/>{selected.phone}</a>} />
-                  <Row label="Email"  value={selected.email} />
+                <Section title={t("drivers.phone")}>
+                  <Row label={t("drivers.phone")} value={<a href={`tel:${selected.phone}`} className="flex items-center gap-1 text-brand-600 hover:underline"><Phone size={12}/>{selected.phone}</a>} />
+                  <Row label={t("login.email")} value={selected.email} />
                 </Section>
 
                 {/* Documents */}
@@ -197,15 +199,15 @@ export function Drivers() {
                 </Section>
 
                 {/* Assignment */}
-                <Section title="Current assignment">
-                  <Row label="Vehicle"      value={selected.vehicle ?? "Unassigned"} />
+                <Section title={t("drivers.assignment")}>
+                  <Row label={t("common.vehicle")} value={selected.vehicle ?? t("dispatch.unassigned")} />
                   <Row label="Active load"  value={selected.currentLoad ?? "None"} />
                 </Section>
 
                 {/* Performance */}
                 <Section title="Performance">
                   <Row label="Total loads"   value={selected.totalLoads} />
-                  <Row label="On-time rate"  value={
+                  <Row label={t("analytics.onTimeRate")} value={
                     <span className={selected.onTime >= 95 ? "text-emerald-600 font-semibold" : selected.onTime >= 85 ? "text-amber-600 font-semibold" : "text-red-600 font-semibold"}>
                       {selected.onTime}%
                     </span>
@@ -229,12 +231,12 @@ export function Drivers() {
       <Modal
         open={isModalOpen}
         onClose={closeModal}
-        title={editing ? `Edit ${selected?.name}` : "Add driver"}
+        title={editing ? `${t("common.view")} ${selected?.name}` : t("drivers.add")}
         size="lg"
         footer={
           <>
-            <Button variant="outline" onClick={closeModal}>Cancel</Button>
-            <Button onClick={save}>{editing ? "Save changes" : "Add driver"}</Button>
+            <Button variant="outline" onClick={closeModal}>{t("common.cancel")}</Button>
+            <Button onClick={save}>{t("drivers.save")}</Button>
           </>
         }
       >
@@ -242,18 +244,18 @@ export function Drivers() {
           <Field label="Full name" className="col-span-2">
             <Input value={form.name ?? ""} onChange={(e) => f("name", e.target.value)} placeholder="Marcus Webb" />
           </Field>
-          <Field label="Phone"><Input value={form.phone ?? ""} onChange={(e) => f("phone", e.target.value)} placeholder="+1 713 555 0121" /></Field>
-          <Field label="Email"><Input type="email" value={form.email ?? ""} onChange={(e) => f("email", e.target.value)} placeholder="driver@carrier.com" /></Field>
+          <Field label={t("drivers.phone")}><Input value={form.phone ?? ""} onChange={(e) => f("phone", e.target.value)} placeholder="+1 713 555 0121" /></Field>
+          <Field label={t("login.email")}><Input type="email" value={form.email ?? ""} onChange={(e) => f("email", e.target.value)} placeholder="driver@carrier.com" /></Field>
           <Field label="License number"><Input value={form.licenseNo ?? ""} onChange={(e) => f("licenseNo", e.target.value)} /></Field>
           <Field label="License expiry"><Input type="date" value={form.licenseExpiry ?? ""} onChange={(e) => f("licenseExpiry", e.target.value)} /></Field>
           <Field label="Passport number"><Input value={form.passportNo ?? ""} onChange={(e) => f("passportNo", e.target.value)} /></Field>
           <Field label="Passport expiry"><Input type="date" value={form.passportExpiry ?? ""} onChange={(e) => f("passportExpiry", e.target.value)} /></Field>
-          <Field label="Status" className="col-span-2">
+          <Field label={t("common.status")} className="col-span-2">
             <Select value={form.status ?? "available"} onChange={(e) => f("status", e.target.value)}>
-              <option value="available">Available</option>
-              <option value="assigned">Assigned</option>
-              <option value="resting">Resting</option>
-              <option value="inactive">Inactive</option>
+              <option value="available">{t("status.available")}</option>
+              <option value="assigned">{t("status.assigned")}</option>
+              <option value="resting">{t("status.resting")}</option>
+              <option value="inactive">{t("status.inactive")}</option>
             </Select>
           </Field>
         </div>

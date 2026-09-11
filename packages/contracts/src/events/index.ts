@@ -3,7 +3,7 @@ import { Load, LoadStatus } from "../load";
 import { Bid } from "../quote";
 import { Shipment } from "../shipment";
 import { TrackingState } from "../tracking";
-import { ShipmentDocument } from "../document";
+import { DocumentRequest, ShipmentDocument } from "../document";
 import { Invoice } from "../billing";
 
 /**
@@ -60,6 +60,9 @@ export const QuoteEventType = {
   Requested: "quote.requested",
   BidSubmitted: "bid.submitted",
   BidAccepted: "bid.accepted",
+  BidRejected: "bid.rejected",
+  BidUpdated: "bid.updated",
+  BidWithdrawn: "bid.withdrawn",
 } as const;
 
 // ── Shipment event types ──
@@ -67,6 +70,8 @@ export const ShipmentEventType = {
   Created: "shipment.created",
   Milestone: "shipment.milestone",
   Delivered: "shipment.delivered",
+  MessageSent: "shipment.message.sent",
+  BrokerAssigned: "shipment.broker.assigned",
 } as const;
 
 // ── Tracking event types ──
@@ -80,6 +85,8 @@ export const TrackingEventType = {
 export const DocEventType = {
   Uploaded: "doc.uploaded",
   Verified: "doc.verified",
+  Requested: "doc.requested",
+  RequestReviewed: "doc.request.reviewed",
 } as const;
 
 // ── Billing event types ──
@@ -122,8 +129,24 @@ export const GeofenceEnteredPayload = z.object({
 });
 export type GeofenceEnteredPayload = z.infer<typeof GeofenceEnteredPayload>;
 
-export const DocUploadedPayload = z.object({ document: ShipmentDocument });
+export const DocUploadedPayload = z.object({
+  document: ShipmentDocument,
+  requestId: z.string().uuid().optional(),
+  targetTenantId: z.string().uuid().optional(),
+});
 export type DocUploadedPayload = z.infer<typeof DocUploadedPayload>;
+
+export const DocumentRequestedPayload = z.object({
+  request: DocumentRequest,
+  targetTenantId: z.string().uuid(),
+});
+export type DocumentRequestedPayload = z.infer<typeof DocumentRequestedPayload>;
+
+export const DocumentRequestReviewedPayload = z.object({
+  request: DocumentRequest,
+  targetTenantId: z.string().uuid(),
+});
+export type DocumentRequestReviewedPayload = z.infer<typeof DocumentRequestReviewedPayload>;
 
 // ── Payload schemas (billing domain) ──
 export const InvoiceIssuedPayload = z.object({ invoice: Invoice });

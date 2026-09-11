@@ -9,7 +9,9 @@
  *
  *   Phase 1: tenant provision + RBAC seed, register/login (argon2),
  *            load CRUD + state machine, and RLS tenant isolation.
- *   Phase 2: quote → bids → accept → bid.accepted event → shipment created.
+ *   Phase 2: quote → bids → accept → booking + shipment created.
+ *   Phase 5: carrier/broker participant RLS, broker assignment, document
+ *            request → upload → approval, notifications, and reload reads.
  *
  * What this PROVES: SQL correctness, schema/migrations, Postgres RLS isolation,
  * the load state machine, optimistic locking, and the accept-bid→shipment
@@ -75,12 +77,18 @@ async function main() {
     }
   }
 
-  section("Apply real migration SQL (auth, tenant, load, carrier, quote, shipment, tracking, doc)");
-  for (const svc of ["auth-svc", "tenant-svc", "load-svc", "carrier-svc", "quote-svc", "shipment-svc", "tracking-svc", "doc-svc"]) {
+  section("Apply real migration SQL (auth, tenant, load, carrier, quote, shipment, tracking, doc, notify)");
+  const migratedServices = ["auth-svc", "tenant-svc", "load-svc", "carrier-svc", "quote-svc", "shipment-svc", "tracking-svc", "doc-svc", "notify-svc"];
+  for (const svc of migratedServices) {
     const sql = readFileSync(join(ROOT, "services", svc, "src", "db", "migrations.sql"), "utf8");
     await db.exec(sql);
     ok(`migrations applied: ${svc}`);
   }
+  for (const svc of migratedServices) {
+    const sql = readFileSync(join(ROOT, "services", svc, "src", "db", "migrations.sql"), "utf8");
+    await db.exec(sql);
+  }
+  ok("all migrations are idempotent on an existing database");
 
   // PGlite connects as the `postgres` SUPERUSER, which bypasses RLS (FORCE RLS
   // only forces it on the table owner, not superusers). Production services
@@ -89,11 +97,11 @@ async function main() {
   section("Create non-superuser app role (so RLS engages, as in prod)");
   await db.exec(`
     CREATE ROLE app_user NOLOGIN;
-    GRANT USAGE ON SCHEMA auth, tenant, load, carrier, quote, shipment, tracking, doc TO app_user;
-    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA auth, tenant, load, carrier, quote, shipment, tracking, doc TO app_user;
-    GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA auth, tenant, load, carrier, quote, shipment, tracking, doc TO app_user;
+    GRANT USAGE ON SCHEMA auth, tenant, load, carrier, quote, shipment, tracking, doc, notify TO app_user;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA auth, tenant, load, carrier, quote, shipment, tracking, doc, notify TO app_user;
+    GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA auth, tenant, load, carrier, quote, shipment, tracking, doc, notify TO app_user;
   `);
-  ok("app_user role created + granted on all 8 schemas");
+  ok("app_user role created + granted on all 9 schemas");
 
   // ── Seed RBAC (mirrors tenant-svc seed.ts) ──
   section("Seed permissions + system roles (tenant-svc)");
@@ -181,13 +189,9 @@ async function main() {
   // ── load-svc: create (post) with reference sequence + RLS ──
   section("PHASE 1 — load-svc: post load (reference sequence + RLS write)");
   const nextRef = async (tid: string) => {
-    const r = await q<{ last_value: number }>(
-      `INSERT INTO load.reference_seq (tenant_id, last_value) VALUES ($1,1)
-       ON CONFLICT (tenant_id) DO UPDATE SET last_value = load.reference_seq.last_value + 1
-       RETURNING last_value`,
-      [tid],
-    );
-    return `EPL-${new Date().getFullYear()}-${String(r.rows[0]!.last_value).padStart(4, "0")}`;
+    void tid;
+    const r = await q<{ value: number }>(`SELECT nextval('load.reference_number_seq')::int AS value`);
+    return `EPL-LOAD-${String(r.rows[0]!.value).padStart(6, "0")}`;
   };
 
   const loadId = await withTenant(tenantId, async () => {
@@ -245,6 +249,7 @@ async function main() {
 
   const shipmentId = await runPhase2(db, q, withTenant, tenantId, userId, loadId);
   await runPhase3(q, withTenant, tenantId, userId, shipmentId);
+  await runPhase5(q, withTenant, tenantId, userId, shipmentId);
   await runPhase4();
 
   // ── Summary ──
@@ -288,6 +293,12 @@ async function runPhase2(
          JSON.stringify(origin), JSON.stringify(destination), bid.price.amount, bid.transitDays, eta],
       );
       if (s.rows.length) {
+        await q(
+          `INSERT INTO shipment.bookings
+            (shipment_id, tenant_id, load_id, quote_id, bid_id, carrier_tenant_id)
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [s.rows[0].id, event.tenantId, lid, quoteId, bid.id, bid.carrierId],
+        );
         for (let i = 0; i < 8; i++)
           await q(
             `INSERT INTO shipment.milestones (shipment_id, tenant_id, status, description, location, completed, seq)
@@ -300,11 +311,14 @@ async function runPhase2(
   ok("consumer subscribed to bid.accepted");
 
   section("PHASE 2 — quote-svc: create quote for the load");
+  const loadReference = await withTenant(tenantId, async () =>
+    (await q(`SELECT reference FROM load.loads WHERE id=$1`, [loadId])).rows[0].reference as string,
+  );
   const quoteId = await withTenant(tenantId, async () => {
     const r = await q(
       `INSERT INTO quote.quotes (tenant_id, load_id, reference, mode, created_by)
-       VALUES ($1,$2,'EPL-2026-0001','Ocean',$3) RETURNING id`,
-      [tenantId, loadId, userId],
+       VALUES ($1,$2,$3,'Ocean',$4) RETURNING id`,
+      [tenantId, loadId, loadReference, userId],
     );
     return r.rows[0].id as string;
   });
@@ -345,9 +359,9 @@ async function runPhase2(
     tenantId,
     correlationId: randomUUID(),
     payload: {
-      quoteId, loadId, reference: "EPL-2026-0001",
+      quoteId, loadId, reference: loadReference,
       bid: {
-        carrierId: bidRow.carrier_id, carrierName: cheapest.name, mode: bidRow.mode,
+        id: cheapest.id, carrierId: bidRow.carrier_id, carrierName: cheapest.name, mode: bidRow.mode,
         price: { amount: Number(bidRow.price_amount), currency: "USD" }, transitDays: bidRow.transit_days,
       },
     },
@@ -368,12 +382,16 @@ async function runPhase2(
     (await q(`SELECT count(*)::int n FROM shipment.milestones`)).rows[0].n,
   );
   ms === 8 ? ok("8 milestones seeded") : bad(`expected 8 milestones, got ${ms}`);
+  const bookings = await withTenant(tenantId, async () =>
+    (await q(`SELECT count(*)::int n FROM shipment.bookings WHERE quote_id=$1`, [quoteId])).rows[0].n,
+  );
+  bookings === 1 ? ok("accepted bid created one normalized booking") : bad(`expected 1 booking, got ${bookings}`);
 
   section("PHASE 2 — idempotency: re-deliver the same event");
   await publish("quote.events", {
     id: acceptEventId, type: "bid.accepted", tenantId, correlationId: randomUUID(),
-    payload: { quoteId, loadId, reference: "EPL-2026-0001",
-      bid: { carrierId: bidRow.carrier_id, carrierName: cheapest.name, mode: bidRow.mode, price: { amount: 1, currency: "USD" }, transitDays: 1 } },
+    payload: { quoteId, loadId, reference: loadReference,
+      bid: { id: cheapest.id, carrierId: bidRow.carrier_id, carrierName: cheapest.name, mode: bidRow.mode, price: { amount: 1, currency: "USD" }, transitDays: 1 } },
   });
   const dupCount = await withTenant(tenantId, async () =>
     (await q(`SELECT count(*)::int n FROM shipment.shipments WHERE quote_id=$1`, [quoteId])).rows[0].n,
@@ -483,6 +501,146 @@ async function runPhase3(
     (await q(`SELECT count(*)::int n FROM doc.documents`)).rows[0].n,
   );
   docLeak === 0 ? ok("other tenant sees 0 documents (RLS)") : bad(`doc RLS LEAK: ${docLeak}`);
+}
+
+// ════════════════════════ PHASE 5 ════════════════════════
+async function runPhase5(
+  q: (sql: string, params?: unknown[]) => Promise<any>,
+  withTenant: <T>(t: string, fn: () => Promise<T>) => Promise<T>,
+  shipperTenantId: string,
+  shipperUserId: string,
+  shipmentId: string,
+) {
+  section("PHASE 5 — canonical booking + participant RBAC");
+  const shipment = await withTenant(shipperTenantId, async () =>
+    (await q(`SELECT * FROM shipment.shipments WHERE id=$1`, [shipmentId])).rows[0],
+  );
+  const carrierTenantId = shipment.carrier_id as string;
+  const brokerTenantId = randomUUID();
+  const brokerUserId = randomUUID();
+
+  const carrierVisible = await withTenant(carrierTenantId, async () =>
+    (await q(`SELECT count(*)::int n FROM shipment.shipments WHERE id=$1`, [shipmentId])).rows[0].n,
+  );
+  carrierVisible === 1 ? ok("selected carrier can read the one canonical shipment") : bad("carrier cannot read awarded shipment");
+
+  const strangerVisible = await withTenant(randomUUID(), async () =>
+    (await q(`SELECT count(*)::int n FROM shipment.shipments WHERE id=$1`, [shipmentId])).rows[0].n,
+  );
+  strangerVisible === 0 ? ok("unassigned company cannot read shipment") : bad("shipment leaked to unassigned company");
+
+  section("PHASE 5 — shipper assigns broker (normalized assignment + timeline)");
+  await withTenant(shipperTenantId, async () => {
+    await q(`UPDATE shipment.shipments SET broker_tenant_id=$2, broker_name='Tashkent Customs Partners' WHERE id=$1`, [shipmentId, brokerTenantId]);
+    await q(
+      `INSERT INTO shipment.broker_assignments
+        (shipment_id, shipper_tenant_id, broker_tenant_id, broker_name, assigned_by)
+       VALUES ($1,$2,$3,'Tashkent Customs Partners',$4)`,
+      [shipmentId, shipperTenantId, brokerTenantId, shipperUserId],
+    );
+    await q(
+      `INSERT INTO shipment.activities
+        (shipment_id, tenant_id, type, title, actor_user_id, actor_role, reference_id)
+       VALUES ($1,$2,'broker.assigned','Tashkent Customs Partners assigned as customs broker',$3,'shipper_admin',$4)`,
+      [shipmentId, shipperTenantId, shipperUserId, brokerTenantId],
+    );
+  });
+  const brokerView = await withTenant(brokerTenantId, async () => ({
+    shipments: (await q(`SELECT count(*)::int n FROM shipment.shipments WHERE id=$1`, [shipmentId])).rows[0].n,
+    assignments: (await q(`SELECT count(*)::int n FROM shipment.broker_assignments WHERE shipment_id=$1 AND active`, [shipmentId])).rows[0].n,
+  }));
+  brokerView.shipments === 1 && brokerView.assignments === 1
+    ? ok("assigned broker sees shipment + active assignment")
+    : bad(`broker access mismatch: ${JSON.stringify(brokerView)}`);
+
+  section("PHASE 5 — broker requests Commercial Invoice");
+  const requestId = await withTenant(brokerTenantId, async () => {
+    const result = await q(
+      `INSERT INTO doc.document_requests
+        (shipment_id, shipment_reference, tenant_id, broker_tenant_id, broker_user_id,
+         broker_name, document_type, title, description, required, due_date, comment)
+       VALUES ($1,$2,$3,$4,$5,'Tashkent Customs Partners','Commercial Invoice',
+         'Commercial Invoice','Signed invoice for customs',true,now() + interval '2 days',
+         'Please provide signed commercial invoice for customs clearance.') RETURNING id`,
+      [shipmentId, shipment.reference, shipperTenantId, brokerTenantId, brokerUserId],
+    );
+    return result.rows[0].id as string;
+  });
+  ok("broker created document request on its assigned shipment");
+
+  const shipperRequest = await withTenant(shipperTenantId, async () => {
+    await q(`UPDATE doc.document_requests SET status='VIEWED', updated_at=now() WHERE id=$1 AND status='REQUESTED'`, [requestId]);
+    return (await q(`SELECT * FROM doc.document_requests WHERE id=$1`, [requestId])).rows[0];
+  });
+  shipperRequest.status === "VIEWED" ? ok("shipper received and viewed broker request") : bad("shipper did not receive request");
+
+  section("PHASE 5 — shipper uploads request file; broker approves");
+  const documentId = await withTenant(shipperTenantId, async () => {
+    const result = await q(
+      `INSERT INTO doc.documents
+        (tenant_id, shipment_id, document_request_id, broker_tenant_id, carrier_tenant_id,
+         type, name, size_bytes, content_type, storage_key, uploaded_by)
+       VALUES ($1,$2,$3,$4,$5,'Commercial Invoice','signed-commercial-invoice.pdf',2048,
+         'application/pdf',$6,$7) RETURNING id`,
+      [shipperTenantId, shipmentId, requestId, brokerTenantId, carrierTenantId, `${shipperTenantId}/invoice.pdf`, shipperUserId],
+    );
+    await q(`UPDATE doc.document_requests SET status='UPLOADED', document_id=$2, updated_at=now() WHERE id=$1`, [requestId, result.rows[0].id]);
+    return result.rows[0].id as string;
+  });
+
+  const brokerUploaded = await withTenant(brokerTenantId, async () => ({
+    request: (await q(`SELECT status FROM doc.document_requests WHERE id=$1`, [requestId])).rows[0]?.status,
+    docs: (await q(`SELECT count(*)::int n FROM doc.documents WHERE id=$1`, [documentId])).rows[0].n,
+  }));
+  brokerUploaded.request === "UPLOADED" && brokerUploaded.docs === 1
+    ? ok("broker immediately sees uploaded requested document")
+    : bad("uploaded document is not visible to broker");
+
+  await withTenant(brokerTenantId, async () => {
+    await q(`UPDATE doc.document_requests SET status='APPROVED', comment='Approved for customs clearance', updated_at=now() WHERE id=$1`, [requestId]);
+    await q(`UPDATE doc.documents SET status='verified' WHERE id=$1`, [documentId]);
+  });
+  const finalRequest = await withTenant(shipperTenantId, async () =>
+    (await q(`SELECT status, comment FROM doc.document_requests WHERE id=$1`, [requestId])).rows[0],
+  );
+  finalRequest.status === "APPROVED" ? ok("shipper sees APPROVED document status") : bad("approval did not reach shipper");
+
+  section("PHASE 5 — shared tracking + notification isolation");
+  await withTenant(shipperTenantId, async () => {
+    await q(`UPDATE tracking.states SET participant_tenant_ids=$2::uuid[] WHERE shipment_id=$1`, [shipmentId, [carrierTenantId, brokerTenantId]]);
+    await q(`UPDATE tracking.positions SET participant_tenant_ids=$2::uuid[] WHERE shipment_id=$1`, [shipmentId, [carrierTenantId, brokerTenantId]]);
+  });
+  const brokerTracking = await withTenant(brokerTenantId, async () =>
+    (await q(`SELECT count(*)::int n FROM tracking.states WHERE shipment_id=$1`, [shipmentId])).rows[0].n,
+  );
+  brokerTracking === 1 ? ok("assigned broker can read shared tracking state") : bad("broker tracking access missing");
+
+  const insertNotification = (tenantId: string, kind: string, title: string, referenceId: string) =>
+    withTenant(tenantId, async () => q(
+      `INSERT INTO notify.notifications
+        (tenant_id, company_id, kind, title, body, shipment_id, reference_id)
+       VALUES ($1,$1,$2,$3,$3,$4,$5)`,
+      [tenantId, kind, title, shipmentId, referenceId],
+    ));
+  await insertNotification(shipperTenantId, "document_requested", "Customs Broker requested Commercial Invoice", requestId);
+  await insertNotification(brokerTenantId, "document_uploaded", "Requested document has been uploaded", requestId);
+  await insertNotification(shipperTenantId, "document_approved", "Commercial Invoice approved", requestId);
+  const shipperNotifications = await withTenant(shipperTenantId, async () => (await q(`SELECT count(*)::int n FROM notify.notifications`)).rows[0].n);
+  const brokerNotifications = await withTenant(brokerTenantId, async () => (await q(`SELECT count(*)::int n FROM notify.notifications`)).rows[0].n);
+  shipperNotifications === 2 && brokerNotifications === 1
+    ? ok("role-specific notifications persisted without cross-company leakage")
+    : bad(`notification counts shipper=${shipperNotifications}, broker=${brokerNotifications}`);
+
+  section("PHASE 5 — reload-equivalent persistence reads");
+  const persisted = await withTenant(shipperTenantId, async () => ({
+    shipment: (await q(`SELECT count(*)::int n FROM shipment.shipments WHERE id=$1`, [shipmentId])).rows[0].n,
+    booking: (await q(`SELECT count(*)::int n FROM shipment.bookings WHERE shipment_id=$1`, [shipmentId])).rows[0].n,
+    request: (await q(`SELECT count(*)::int n FROM doc.document_requests WHERE id=$1 AND status='APPROVED'`, [requestId])).rows[0].n,
+    document: (await q(`SELECT count(*)::int n FROM doc.documents WHERE id=$1 AND status='verified'`, [documentId])).rows[0].n,
+  }));
+  Object.values(persisted).every((count) => count === 1)
+    ? ok("shipment, booking, request, and document survive fresh database reads")
+    : bad(`persistence mismatch: ${JSON.stringify(persisted)}`);
 }
 
 // ════════════════════════ PHASE 4 ════════════════════════

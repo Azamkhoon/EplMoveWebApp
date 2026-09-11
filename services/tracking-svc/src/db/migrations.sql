@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS tracking.states (
   dest_entered    boolean NOT NULL DEFAULT false,
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE tracking.states ADD COLUMN IF NOT EXISTS participant_tenant_ids uuid[] NOT NULL DEFAULT '{}';
 CREATE INDEX IF NOT EXISTS states_tenant_idx ON tracking.states (tenant_id);
 
 -- Append-only position history (time-series).
@@ -33,6 +34,7 @@ CREATE TABLE IF NOT EXISTS tracking.positions (
   heading_deg  numeric,
   reported_at  timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE tracking.positions ADD COLUMN IF NOT EXISTS participant_tenant_ids uuid[] NOT NULL DEFAULT '{}';
 CREATE INDEX IF NOT EXISTS positions_shipment_idx ON tracking.positions (shipment_id, reported_at DESC);
 
 CREATE TABLE IF NOT EXISTS tracking.processed_events (
@@ -53,14 +55,24 @@ ALTER TABLE tracking.positions FORCE ROW LEVEL SECURITY;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='tracking' AND tablename='states' AND policyname='tenant_isolation') THEN
-    CREATE POLICY tenant_isolation ON tracking.states
-      USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
-      WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='tracking' AND tablename='positions' AND policyname='tenant_isolation') THEN
-    CREATE POLICY tenant_isolation ON tracking.positions
-      USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
-      WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
-  END IF;
+  DROP POLICY IF EXISTS tenant_isolation ON tracking.states;
+  CREATE POLICY tenant_isolation ON tracking.states
+    USING (
+      tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
+      OR NULLIF(current_setting('app.tenant_id', true), '')::uuid = ANY(participant_tenant_ids)
+    )
+    WITH CHECK (
+      tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
+      OR NULLIF(current_setting('app.tenant_id', true), '')::uuid = ANY(participant_tenant_ids)
+    );
+  DROP POLICY IF EXISTS tenant_isolation ON tracking.positions;
+  CREATE POLICY tenant_isolation ON tracking.positions
+    USING (
+      tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
+      OR NULLIF(current_setting('app.tenant_id', true), '')::uuid = ANY(participant_tenant_ids)
+    )
+    WITH CHECK (
+      tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
+      OR NULLIF(current_setting('app.tenant_id', true), '')::uuid = ANY(participant_tenant_ids)
+    );
 END$$;

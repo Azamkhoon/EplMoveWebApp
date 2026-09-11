@@ -22,6 +22,7 @@ import { ProgressBar } from "@/components/ui/Misc";
 import { api } from "@/api/client";
 import type { CarrierBid, MarketplaceQuote } from "@epl/sdk";
 import { formatCurrency, relativeTime } from "@/lib/utils";
+import { useI18n } from "@/i18n/LanguageContext";
 
 // ── Mock fleet/dispatch data ──────────────────────────────────────────────────
 const MOCK_VEHICLES = [
@@ -63,6 +64,7 @@ const DRIVER_STATUS: Record<string, { label: string; color: string }> = {
 };
 
 export function Dashboard() {
+  const { t } = useI18n();
   const [open, setOpen] = useState<MarketplaceQuote[]>([]);
   const [bids, setBids] = useState<CarrierBid[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,18 +91,18 @@ export function Dashboard() {
     <div className="space-y-6">
       {/* ── KPI Row ── */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <StatCard label="Open loads"     value={open.length}   icon={<Store size={18} />}          accent="brand"   hint="in marketplace now" />
-        <StatCard label="Pending bids"   value={pending.length} icon={<Gavel size={18} />}          accent="amber"   hint="awaiting shipper decision" />
-        <StatCard label="Loads won"      value={won.length}    icon={<Trophy size={18} />}          accent="emerald" hint={`${winRate}% win rate`} />
-        <StatCard label="Won revenue"    value={revenue}       icon={<CircleDollarSign size={18} />} accent="navy"
-          format={(n) => formatCurrency(n)} hint="sum of accepted bids" />
+        <StatCard label={t("dashboard.openLoads")} value={open.length} icon={<Store size={18} />} accent="brand" hint={t("dashboard.marketplaceNow")} />
+        <StatCard label={t("dashboard.pendingBids")} value={pending.length} icon={<Gavel size={18} />} accent="amber" hint={t("dashboard.awaitingDecision")} />
+        <StatCard label={t("dashboard.loadsWon")} value={won.length} icon={<Trophy size={18} />} accent="emerald" hint={`${winRate}% ${t("dashboard.winRate")}`} />
+        <StatCard label={t("dashboard.wonRevenue")} value={revenue} icon={<CircleDollarSign size={18} />} accent="navy"
+          format={(n) => formatCurrency(n)} hint={t("dashboard.acceptedBids")} />
       </div>
 
       {/* ── Fleet + Driver Utilisation ── */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {/* Fleet util */}
         <Card className="col-span-1">
-          <CardHeader title="Fleet utilisation" subtitle={`${activeV} of ${MOCK_VEHICLES.length} vehicles active`} />
+          <CardHeader title={t("dashboard.fleetUtilisation")} subtitle={`${activeV}/${MOCK_VEHICLES.length} ${t("dashboard.vehiclesActive")}`} />
           <CardBody className="space-y-3">
             <div className="flex items-end justify-between">
               <span className="text-3xl font-bold text-slate-900">{utilPct}%</span>
@@ -115,7 +117,7 @@ export function Dashboard() {
                     v.status === "active" ? "bg-emerald-500" : v.status === "maintenance" ? "bg-red-400" : "bg-slate-300"
                   )} />
                   <span className="flex-1 truncate text-slate-600">{v.plate} · {v.type}</span>
-                  <span className="capitalize text-slate-400">{v.status}</span>
+                  <span className="capitalize text-slate-400">{v.status === "idle" ? t("common.inactive") : t(`common.${v.status}`)}</span>
                 </div>
               ))}
             </div>
@@ -124,7 +126,7 @@ export function Dashboard() {
 
         {/* Driver roster */}
         <Card className="col-span-1">
-          <CardHeader title="Driver roster" subtitle={`${availD} available now`} />
+          <CardHeader title={t("dashboard.driverRoster")} subtitle={`${availD} ${t("dashboard.availableNow")}`} />
           <CardBody className="space-y-2">
             {MOCK_DRIVERS.map((d) => {
               const s = DRIVER_STATUS[d.status];
@@ -135,25 +137,25 @@ export function Dashboard() {
                     <p className="truncate text-sm font-medium text-slate-800">{d.name}</p>
                     {d.route && <p className="truncate text-xs text-slate-400">{d.route}</p>}
                   </div>
-                  <span className="shrink-0 text-xs text-slate-500">{s.label}</span>
+                  <span className="shrink-0 text-xs text-slate-500">{t(`status.${d.status}`)}</span>
                 </div>
               );
             })}
             <Link to="/drivers" className="mt-2 flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline">
-              Manage drivers <ArrowRight size={12} />
+              {t("dashboard.manageDrivers")} <ArrowRight size={12} />
             </Link>
           </CardBody>
         </Card>
 
         {/* Alerts */}
         <Card className="col-span-1">
-          <CardHeader title="Alerts" subtitle="Items needing attention" />
+          <CardHeader title={t("dashboard.alerts")} subtitle={t("dashboard.attention")} />
           <CardBody className="space-y-3">
             {delayed > 0 && (
               <div className="flex items-start gap-2.5 rounded-lg bg-red-50 px-3 py-2.5 ring-1 ring-red-200">
                 <AlertTriangle size={15} className="mt-0.5 shrink-0 text-red-500" />
                 <div>
-                  <p className="text-sm font-medium text-red-700">{delayed} delayed shipment{delayed > 1 ? "s" : ""}</p>
+                  <p className="text-sm font-medium text-red-700">{delayed} {t("dashboard.delayedShipment")}</p>
                   <p className="text-xs text-red-500">SHP-0039 is behind schedule</p>
                 </div>
               </div>
@@ -161,14 +163,14 @@ export function Dashboard() {
             <div className="flex items-start gap-2.5 rounded-lg bg-amber-50 px-3 py-2.5 ring-1 ring-amber-200">
               <Clock size={15} className="mt-0.5 shrink-0 text-amber-500" />
               <div>
-                <p className="text-sm font-medium text-amber-700">1 unassigned load</p>
-                <p className="text-xs text-amber-500">SHP-0036 needs a driver</p>
+                <p className="text-sm font-medium text-amber-700">1 {t("dashboard.unassignedLoad")}</p>
+                <p className="text-xs text-amber-500">SHP-0036 {t("dashboard.needsDriver")}</p>
               </div>
             </div>
             <div className="flex items-start gap-2.5 rounded-lg bg-slate-50 px-3 py-2.5 ring-1 ring-slate-200">
               <Truck size={15} className="mt-0.5 shrink-0 text-slate-400" />
               <div>
-                <p className="text-sm font-medium text-slate-700">V-003 in maintenance</p>
+                <p className="text-sm font-medium text-slate-700">V-003 {t("dashboard.inMaintenance")}</p>
                 <p className="text-xs text-slate-400">FL-2210 Reefer — due Jun 16</p>
               </div>
             </div>
@@ -183,9 +185,9 @@ export function Dashboard() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader
-            title="Active shipments"
-            subtitle="Live dispatch status"
-            action={<Link to="/dispatch"><Button variant="outline" size="sm">Dispatch <ArrowRight size={14} /></Button></Link>}
+            title={t("common.shipments")}
+            subtitle={t("page.dispatch.subtitle")}
+            action={<Link to="/dispatch"><Button variant="outline" size="sm">{t("nav.dispatch")} <ArrowRight size={14} /></Button></Link>}
           />
           <div className="overflow-x-auto">
             <table className="w-full min-w-[480px] text-sm">
@@ -223,14 +225,14 @@ export function Dashboard() {
 
         <Card>
           <CardHeader
-            title="Marketplace · newest loads"
-            subtitle="Fresh requests from shippers"
-            action={<Link to="/marketplace"><Button variant="outline" size="sm">All loads <ArrowRight size={14} /></Button></Link>}
+            title={t("dashboard.openMarketplace")}
+            subtitle={t("page.marketplace.subtitle")}
+            action={<Link to="/marketplace"><Button variant="outline" size="sm">{t("common.all")} <ArrowRight size={14} /></Button></Link>}
           />
           {loading ? (
-            <div className="py-10 text-center text-sm text-slate-400">Loading…</div>
+            <div className="py-10 text-center text-sm text-slate-400">{t("common.loading")}</div>
           ) : open.length === 0 ? (
-            <div className="py-10 text-center text-sm text-slate-400">No open loads right now</div>
+            <div className="py-10 text-center text-sm text-slate-400">{t("market.noLoads")}</div>
           ) : (
             <div className="divide-y divide-slate-50">
               {open.slice(0, 6).map((q) => (
@@ -257,12 +259,12 @@ export function Dashboard() {
       {/* ── Bid outcomes ── */}
       <Card>
         <CardHeader
-          title="Recent bid outcomes"
-          subtitle="How your latest quotes fared"
-          action={<Link to="/bids"><Button variant="outline" size="sm">All bids <ArrowRight size={14} /></Button></Link>}
+          title={t("nav.bids")}
+          subtitle={t("page.bids.subtitle")}
+          action={<Link to="/bids"><Button variant="outline" size="sm">{t("common.all")} <ArrowRight size={14} /></Button></Link>}
         />
         {bids.length === 0 && !loading ? (
-          <div className="py-10 text-center text-sm text-slate-400">No bids yet — quote loads from the Marketplace.</div>
+          <div className="py-10 text-center text-sm text-slate-400">{t("bids.marketHint")}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">

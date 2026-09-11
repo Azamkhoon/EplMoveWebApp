@@ -13,6 +13,7 @@ import type {
   SubmitBidInput,
   MarketplaceQuote,
   CarrierBidInput,
+  UpdateCarrierBidInput,
   CarrierBid,
   TrackingState,
   UpdateLoadInput,
@@ -27,6 +28,13 @@ import type {
   DocAssistResult,
   Invoice,
   Notification,
+  AssignBrokerInput,
+  UpdateShipmentStatusInput,
+  DocumentRequest,
+  CreateDocumentRequestInput,
+  ReviewDocumentRequestInput,
+  ShipmentMessage,
+  SendShipmentMessageInput,
 } from "@epl/contracts";
 
 /**
@@ -54,16 +62,19 @@ export class ApiError extends Error {
 
 export interface EplClientOptions {
   baseUrl: string;
+  portal?: "shipper" | "carrier" | "broker" | "admin";
   onTokenChange?: (token: string | null) => void;
 }
 
 export class EplClient {
   private accessToken: string | null = null;
   private readonly baseUrl: string;
+  private readonly portal?: EplClientOptions["portal"];
   private readonly onTokenChange?: (t: string | null) => void;
 
   constructor(opts: EplClientOptions) {
     this.baseUrl = opts.baseUrl.replace(/\/$/, "");
+    this.portal = opts.portal;
     this.onTokenChange = opts.onTokenChange;
   }
 
@@ -78,18 +89,29 @@ export class EplClient {
 
   private async request<T>(
     path: string,
-    init: RequestInit & { auth?: boolean } = {},
+    init: RequestInit & { auth?: boolean; retryAuth?: boolean } = {},
   ): Promise<T> {
-    const { auth = true, headers, ...rest } = init;
+    const { auth = true, retryAuth = true, headers, ...rest } = init;
     const res = await fetch(`${this.baseUrl}${path}`, {
       ...rest,
       credentials: "include",
       headers: {
         "content-type": "application/json",
+        ...(this.portal ? { "x-epl-portal": this.portal } : {}),
         ...(auth && this.accessToken ? { authorization: `Bearer ${this.accessToken}` } : {}),
         ...headers,
       },
     });
+
+    // All portals share the same refresh-cookie based session. Transparently
+    // renew an expired access token once so ordinary page actions do not fail
+    // just because a short-lived JWT elapsed while another portal was open.
+    if (res.status === 401 && auth && retryAuth) {
+      const refreshed = await this.refresh();
+      if (refreshed) {
+        return this.request<T>(path, { ...rest, headers, auth, retryAuth: false });
+      }
+    }
 
     if (res.status === 204) return undefined as T;
 
@@ -104,7 +126,7 @@ export class EplClient {
   // ── Auth ──
   // `kind` is optional here (defaults to "shipper" server-side) so shipper
   // callers don't have to pass it; carrier portals send kind:"carrier".
-  async register(input: Omit<RegisterInput, "kind"> & { kind?: "shipper" | "carrier" }): Promise<AuthTokens> {
+  async register(input: Omit<RegisterInput, "kind"> & { kind?: "shipper" | "carrier" | "broker" }): Promise<AuthTokens> {
     const t = await this.request<AuthTokens>("/auth/register", {
       method: "POST",
       auth: false,
@@ -208,6 +230,10 @@ export class EplClient {
     return this.request<Quote>(`/quotes/${quoteId}/bids/${bidId}/accept`, { method: "POST" });
   }
 
+  rejectBid(quoteId: string, bidId: string): Promise<Quote> {
+    return this.request<Quote>(`/quotes/${quoteId}/bids/${bidId}/reject`, { method: "POST" });
+  }
+
   // ── Carrier marketplace (two-sided) ──
   /** Open quotes across all shippers (carrier view). */
   listOpenQuotes(): Promise<MarketplaceQuote[]> {
@@ -227,6 +253,17 @@ export class EplClient {
     });
   }
 
+  updateMarketplaceBid(bidId: string, input: UpdateCarrierBidInput): Promise<CarrierBid> {
+    return this.request<CarrierBid>(`/marketplace/bids/${bidId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  }
+
+  withdrawMarketplaceBid(bidId: string): Promise<CarrierBid> {
+    return this.request<CarrierBid>(`/marketplace/bids/${bidId}`, { method: "DELETE" });
+  }
+
   // ── Shipments ──
   listShipments(): Promise<Shipment[]> {
     return this.request<Shipment[]>("/shipments");
@@ -234,6 +271,38 @@ export class EplClient {
 
   getShipment(id: string): Promise<Shipment> {
     return this.request<Shipment>(`/shipments/${id}`);
+  }
+
+  assignBroker(shipmentId: string, input: AssignBrokerInput): Promise<Shipment> {
+    return this.request<Shipment>(`/shipments/${shipmentId}/broker-assignment`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  updateShipmentStatus(shipmentId: string, input: UpdateShipmentStatusInput): Promise<Shipment> {
+    return this.request<Shipment>(`/shipments/${shipmentId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  }
+
+  listShipmentMessages(shipmentId: string): Promise<ShipmentMessage[]> {
+    return this.request<ShipmentMessage[]>(`/shipments/${shipmentId}/messages`);
+  }
+
+  sendShipmentMessage(shipmentId: string, input: SendShipmentMessageInput): Promise<ShipmentMessage> {
+    return this.request<ShipmentMessage>(`/shipments/${shipmentId}/messages`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  listCompanies(kind?: "shipper" | "carrier" | "broker"): Promise<
+    { id: string; name: string; slug: string; kind: string; country?: string; city?: string }[]
+  > {
+    const suffix = kind ? `?kind=${encodeURIComponent(kind)}` : "";
+    return this.request(`/directory/tenants${suffix}`);
   }
 
   // ── Carriers ──
@@ -301,6 +370,37 @@ export class EplClient {
     });
   }
 
+  listDocumentRequests(shipmentId?: string): Promise<DocumentRequest[]> {
+    const suffix = shipmentId ? `?shipmentId=${encodeURIComponent(shipmentId)}` : "";
+    return this.request<DocumentRequest[]>(`/documents/requests${suffix}`);
+  }
+
+  createDocumentRequest(input: CreateDocumentRequestInput): Promise<DocumentRequest> {
+    return this.request<DocumentRequest>("/documents/requests", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  reviewDocumentRequest(id: string, input: ReviewDocumentRequestInput): Promise<DocumentRequest> {
+    return this.request<DocumentRequest>(`/documents/requests/${id}/review`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async downloadDocument(id: string): Promise<Blob> {
+    const res = await fetch(`${this.baseUrl}/documents/${id}/download`, {
+      credentials: "include",
+      headers: {
+        ...(this.accessToken ? { authorization: `Bearer ${this.accessToken}` } : {}),
+        ...(this.portal ? { "x-epl-portal": this.portal } : {}),
+      },
+    });
+    if (!res.ok) throw new ApiError(res.status, "DOWNLOAD_FAILED", "Document download failed");
+    return res.blob();
+  }
+
   verifyDocument(id: string): Promise<ShipmentDocument> {
     return this.request<ShipmentDocument>(`/documents/${id}/verify`, { method: "POST" });
   }
@@ -354,6 +454,42 @@ export class EplClient {
       body: JSON.stringify({ ids }),
     });
   }
+
+  openNotificationStream(onNotification: (notification: Notification) => void): () => void {
+    const base = this.baseUrl.replace(/^http/, "ws");
+    let stopped = false;
+    let socket: WebSocket | null = null;
+    let retryMs = 1000;
+    const connect = () => {
+      if (stopped) return;
+      socket = new WebSocket(
+        `${base}/ws/notifications?token=${encodeURIComponent(this.accessToken ?? "")}`,
+      );
+      socket.onopen = () => {
+        retryMs = 1000;
+      };
+      socket.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data as string);
+          if (message.type === "notification") {
+            onNotification(message.notification as Notification);
+          }
+        } catch {
+          /* ignore malformed frames */
+        }
+      };
+      socket.onclose = () => {
+        if (stopped) return;
+        window.setTimeout(connect, retryMs);
+        retryMs = Math.min(retryMs * 2, 15000);
+      };
+    };
+    connect();
+    return () => {
+      stopped = true;
+      socket?.close();
+    };
+  }
 }
 
 export type {
@@ -365,6 +501,7 @@ export type {
   Quote,
   CreateQuoteInput,
   Shipment,
+  ShipmentStatus,
   Carrier,
   TrackingState,
   ShipmentDocument,
@@ -379,4 +516,12 @@ export type {
   MarketplaceQuote,
   CarrierBid,
   CarrierBidInput,
+  UpdateCarrierBidInput,
+  DocumentRequest,
+  CreateDocumentRequestInput,
+  ReviewDocumentRequestInput,
+  AssignBrokerInput,
+  UpdateShipmentStatusInput,
+  ShipmentMessage,
+  SendShipmentMessageInput,
 } from "@epl/contracts";

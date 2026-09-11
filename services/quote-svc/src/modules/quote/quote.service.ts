@@ -6,8 +6,10 @@ import {
   CreateQuoteInput,
   SubmitBidInput,
   CarrierBidInput,
+  UpdateCarrierBidInput,
   Events,
   type Carrier,
+  type Load,
   type MarketplaceQuote,
   type CarrierBid,
 } from "@epl/contracts";
@@ -17,6 +19,7 @@ import { enqueueOutbox, makeEvent } from "@epl/events";
 import type { RequestContext } from "@epl/auth";
 import { config } from "../../config";
 import { CarrierClient } from "./carrier.client";
+import { LoadClient } from "./load.client";
 
 type Ctx = Pick<RequestContext, "userId" | "tenantId" | "role" | "correlationId">;
 
@@ -30,7 +33,10 @@ export class QuoteService {
     database: config.DB_NAME,
   });
 
-  constructor(private readonly carriers: CarrierClient) {}
+  constructor(
+    private readonly carriers: CarrierClient,
+    private readonly loads: LoadClient,
+  ) {}
 
   private async tx<T>(tenantId: string, fn: (c: PoolClient) => Promise<T>): Promise<T> {
     const c = await this.pool.connect();
@@ -58,10 +64,14 @@ export class QuoteService {
       mode: r.mode,
       price: { amount: Number(r.price_amount), currency: r.price_currency },
       transitDays: Number(r.transit_days),
+      equipment: r.equipment ?? undefined,
+      truckInfo: r.truck_info ?? undefined,
+      comment: r.comment ?? undefined,
       co2Kg: r.co2_kg != null ? Number(r.co2_kg) : undefined,
       validUntil: r.valid_until ? new Date(r.valid_until).toISOString() : undefined,
       status: r.status,
       createdAt: new Date(r.created_at).toISOString(),
+      updatedAt: new Date(r.updated_at ?? r.created_at).toISOString(),
     });
   }
 
@@ -83,13 +93,26 @@ export class QuoteService {
   // ── Create a quote request for a load ──
   async create(ctx: Ctx, body: unknown): Promise<Quote> {
     const input = CreateQuoteInput.parse(body);
+    const load = await this.loads.get(input.loadId, ctx.tenantId);
+    if (!load) throw new NotFoundException("load not found");
     const quote = await this.tx(ctx.tenantId, async (c) => {
       const { rows } = await c.query(
-        `INSERT INTO quote.quotes (tenant_id, load_id, reference, mode, created_by, expires_at)
-         VALUES ($1,$2,$3,$4,$5,$6)
-         ON CONFLICT (tenant_id, load_id) DO UPDATE SET status='open'
+        `INSERT INTO quote.quotes
+           (tenant_id, load_id, reference, mode, created_by, expires_at, load_snapshot)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         ON CONFLICT (tenant_id, load_id) DO UPDATE
+           SET load_snapshot=EXCLUDED.load_snapshot,
+               expires_at=COALESCE(EXCLUDED.expires_at, quote.quotes.expires_at)
          RETURNING *`,
-        [ctx.tenantId, input.loadId, input.reference, input.mode, ctx.userId, input.expiresAt ?? null],
+        [
+          ctx.tenantId,
+          input.loadId,
+          input.reference,
+          input.mode,
+          ctx.userId,
+          input.expiresAt ?? null,
+          JSON.stringify(load),
+        ],
       );
       const q = this.rowToQuote(rows[0]);
       await this.emit(c, ctx, Events.QuoteEventType.Requested, q.id, {
@@ -100,8 +123,48 @@ export class QuoteService {
       return q;
     });
 
+    await this.loads.transition(load.id, ctx.tenantId, "open_for_bids").catch(() => undefined);
+
     if (config.AUTO_BID) await this.generateDemoBids(ctx, quote);
     return this.getById(ctx, quote.id);
+  }
+
+  async createFromPostedLoad(
+    eventId: string,
+    event: Events.EventEnvelope,
+    load: Load,
+  ): Promise<Quote | null> {
+    const ctx: Ctx = {
+      userId: event.actor.userId ?? load.createdBy,
+      tenantId: event.tenantId,
+      role: event.actor.role ?? "system",
+      correlationId: event.correlationId,
+    };
+    const quote = await this.tx(event.tenantId, async (c) => {
+      const dedupe = await c.query(
+        `INSERT INTO quote.processed_events (event_id) VALUES ($1)
+         ON CONFLICT DO NOTHING RETURNING event_id`,
+        [eventId],
+      );
+      if (dedupe.rowCount === 0) return null;
+      const { rows } = await c.query(
+        `INSERT INTO quote.quotes
+          (tenant_id, load_id, reference, mode, created_by, load_snapshot)
+         VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (tenant_id, load_id) DO NOTHING RETURNING *`,
+        [event.tenantId, load.id, load.reference, load.mode, load.createdBy, JSON.stringify(load)],
+      );
+      if (!rows[0]) return null;
+      const created = this.rowToQuote(rows[0]);
+      await this.emit(c, ctx, Events.QuoteEventType.Requested, created.id, {
+        quoteId: created.id,
+        loadId: created.loadId,
+        reference: created.reference,
+      });
+      return created;
+    });
+    if (quote) await this.loads.transition(load.id, event.tenantId, "open_for_bids").catch(() => undefined);
+    return quote;
   }
 
   // ── List quotes / get one with bids (enriched with carrier summaries) ──
@@ -137,11 +200,14 @@ export class QuoteService {
       if (q[0].status !== "open") throw new ConflictException("quote is not open");
       const { rows } = await c.query(
         `INSERT INTO quote.bids
-           (tenant_id, quote_id, carrier_id, mode, price_amount, price_currency, transit_days, co2_kg, valid_until)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+           (tenant_id, quote_id, carrier_id, mode, price_amount, price_currency, transit_days,
+            equipment, truck_info, comment, co2_kg, valid_until)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
         [
           ctx.tenantId, quoteId, input.carrierId, input.mode, input.price.amount,
-          input.price.currency, input.transitDays, input.co2Kg ?? null, input.validUntil ?? null,
+          input.price.currency, input.transitDays, input.equipment ?? null,
+          input.truckInfo ?? null, input.comment ?? null, input.co2Kg ?? null,
+          input.validUntil ?? null,
         ],
       );
       const bid = this.rowToBid(rows[0]);
@@ -152,7 +218,7 @@ export class QuoteService {
 
   // ── Accept a bid → award quote, emit bid.accepted (shipment-svc consumes) ──
   async acceptBid(ctx: Ctx, quoteId: string, bidId: string): Promise<Quote> {
-    await this.tx(ctx.tenantId, async (c) => {
+    const acceptedLoad = await this.tx(ctx.tenantId, async (c) => {
       const { rows: q } = await c.query(`SELECT * FROM quote.quotes WHERE id = $1`, [quoteId]);
       if (!q[0]) throw new NotFoundException("quote not found");
       if (q[0].status === "awarded") throw new ConflictException("quote already awarded");
@@ -163,11 +229,14 @@ export class QuoteService {
       );
       if (!b[0]) throw new NotFoundException("bid not found");
 
-      await c.query(`UPDATE quote.bids SET status='accepted' WHERE id=$1`, [bidId]);
+      const { rows: acceptedRows } = await c.query(
+        `UPDATE quote.bids SET status='accepted', updated_at=now() WHERE id=$1 RETURNING *`,
+        [bidId],
+      );
       await c.query(`UPDATE quote.bids SET status='rejected' WHERE quote_id=$1 AND id<>$2`, [quoteId, bidId]);
       await c.query(`UPDATE quote.quotes SET status='awarded' WHERE id=$1`, [quoteId]);
 
-      const acceptedBid = this.rowToBid(b[0]);
+      const acceptedBid = this.rowToBid(acceptedRows[0]);
       // Enrich with the carrier summary so downstream consumers (shipment-svc,
       // billing-svc, notify-svc) get the real carrier name, not a fallback.
       const summaries = await this.carriers.summaries([acceptedBid.carrierId]);
@@ -177,6 +246,31 @@ export class QuoteService {
         loadId: q[0].load_id,
         reference: q[0].reference,
         bid: enrichedBid,
+      });
+      return { id: q[0].load_id as string, tenantId: q[0].tenant_id as string };
+    });
+    await this.loads
+      .transition(acceptedLoad.id, acceptedLoad.tenantId, "carrier_selected")
+      .catch(() => undefined);
+    await this.loads.transition(acceptedLoad.id, acceptedLoad.tenantId, "booked").catch(() => undefined);
+    return this.getById(ctx, quoteId);
+  }
+
+  async rejectBid(ctx: Ctx, quoteId: string, bidId: string): Promise<Quote> {
+    await this.tx(ctx.tenantId, async (c) => {
+      const quote = await c.query(`SELECT reference, status FROM quote.quotes WHERE id=$1`, [quoteId]);
+      if (!quote.rows[0]) throw new NotFoundException("quote not found");
+      if (quote.rows[0].status !== "open") throw new ConflictException("quote is not open");
+      const { rows } = await c.query(
+        `UPDATE quote.bids SET status='rejected', updated_at=now()
+          WHERE id=$1 AND quote_id=$2 AND status='submitted' RETURNING *`,
+        [bidId, quoteId],
+      );
+      if (!rows[0]) throw new NotFoundException("submitted bid not found");
+      const bid = this.rowToBid(rows[0]);
+      await this.emit(c, ctx, Events.QuoteEventType.BidRejected, quoteId, {
+        bid,
+        reference: quote.rows[0].reference,
       });
     });
     return this.getById(ctx, quoteId);
@@ -215,7 +309,7 @@ export class QuoteService {
   async listOpenQuotes(ctx: Ctx): Promise<MarketplaceQuote[]> {
     return this.marketplaceTx(ctx.tenantId, async (c) => {
       const { rows } = await c.query(
-        `SELECT q.id, q.reference, q.mode, q.created_at, q.expires_at,
+        `SELECT q.id, q.reference, q.mode, q.created_at, q.expires_at, q.load_snapshot,
                 count(b.id)::int                                 AS bid_count,
                 count(b.id) FILTER (WHERE b.carrier_id = $1)::int AS my_bid_count,
                 min(b.price_amount)                              AS best_price
@@ -227,39 +321,76 @@ export class QuoteService {
           LIMIT 100`,
         [ctx.tenantId],
       );
-      return rows.map((r) => ({
-        id: r.id,
-        reference: r.reference,
-        mode: r.mode,
-        createdAt: new Date(r.created_at).toISOString(),
-        expiresAt: r.expires_at ? new Date(r.expires_at).toISOString() : undefined,
-        bidCount: r.bid_count,
-        myBidCount: r.my_bid_count,
-        bestPrice: r.best_price != null ? Number(r.best_price) : undefined,
-      }));
+      return rows.map((r) => {
+        const load = (r.load_snapshot ?? {}) as Record<string, any>;
+        const pickup = load.pickup ?? {};
+        const delivery = load.delivery ?? {};
+        return {
+          id: r.id,
+          reference: r.reference,
+          mode: r.mode,
+          createdAt: new Date(r.created_at).toISOString(),
+          expiresAt: r.expires_at ? new Date(r.expires_at).toISOString() : undefined,
+          bidCount: r.bid_count,
+          myBidCount: r.my_bid_count,
+          bestPrice: r.best_price != null ? Number(r.best_price) : undefined,
+          origin: [pickup.city, pickup.country].filter(Boolean).join(", ") || "Origin",
+          destination: [delivery.city, delivery.country].filter(Boolean).join(", ") || "Destination",
+          pickup,
+          delivery,
+          commodity: load.commodity ?? "Cargo",
+          weightKg: Number(load.weightKg ?? 0),
+          volumeM3: load.volumeM3 != null ? Number(load.volumeM3) : undefined,
+          equipmentCode: load.equipmentCode ?? load.trailerType ?? undefined,
+          readyDate: load.readyDate ?? undefined,
+          requiredDeliveryDate: load.requiredDeliveryDate ?? undefined,
+          loadStatus: load.status ?? "posted",
+        } satisfies MarketplaceQuote;
+      });
     });
   }
 
   /** Carrier submits a bid on an open quote. carrier_id = carrier's tenantId. */
   async submitCarrierBid(ctx: Ctx, quoteId: string, body: unknown): Promise<Bid> {
     const input = CarrierBidInput.parse(body);
-    return this.marketplaceTx(ctx.tenantId, async (c) => {
+    const submitted = await this.marketplaceTx(ctx.tenantId, async (c) => {
       const { rows: q } = await c.query(
-        `SELECT id, tenant_id, status, mode FROM quote.quotes WHERE id = $1`,
+        `SELECT id, tenant_id, load_id, status, mode FROM quote.quotes WHERE id = $1`,
         [quoteId],
       );
       if (!q[0]) throw new NotFoundException("quote not found");
       if (q[0].status !== "open") throw new ConflictException("quote is not open");
 
-      // One active bid per carrier per quote: replace a prior submission.
-      await c.query(
-        `DELETE FROM quote.bids WHERE quote_id = $1 AND carrier_id = $2 AND status = 'submitted'`,
+      const existing = await c.query(
+        `SELECT id FROM quote.bids
+          WHERE quote_id=$1 AND carrier_id=$2 AND status='submitted'
+          ORDER BY created_at DESC LIMIT 1`,
         [quoteId, ctx.tenantId],
       );
-      const { rows } = await c.query(
+      const result = existing.rows[0]
+        ? await c.query(
+            `UPDATE quote.bids SET mode=$2, price_amount=$3, price_currency=$4,
+               transit_days=$5, equipment=$6, truck_info=$7, comment=$8,
+               co2_kg=$9, valid_until=$10, updated_at=now()
+             WHERE id=$1 RETURNING *`,
+            [
+              existing.rows[0].id,
+              input.mode ?? q[0].mode,
+              input.price.amount,
+              input.price.currency,
+              input.transitDays,
+              input.equipment ?? null,
+              input.truckInfo ?? null,
+              input.comment ?? null,
+              input.co2Kg ?? null,
+              input.validUntil ?? null,
+            ],
+          )
+        : await c.query(
         `INSERT INTO quote.bids
-           (tenant_id, quote_id, carrier_id, mode, price_amount, price_currency, transit_days, co2_kg, valid_until)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+           (tenant_id, quote_id, carrier_id, mode, price_amount, price_currency, transit_days,
+            equipment, truck_info, comment, co2_kg, valid_until)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
         [
           q[0].tenant_id,          // bid belongs to the shipper tenant (RLS owner)
           quoteId,
@@ -268,12 +399,86 @@ export class QuoteService {
           input.price.amount,
           input.price.currency,
           input.transitDays,
+          input.equipment ?? null,
+          input.truckInfo ?? null,
+          input.comment ?? null,
           input.co2Kg ?? null,
           input.validUntil ?? null,
         ],
       );
+      const bid = this.rowToBid(result.rows[0]);
+      await this.emit(
+        c,
+        ctx,
+        existing.rows[0] ? Events.QuoteEventType.BidUpdated : Events.QuoteEventType.BidSubmitted,
+        quoteId,
+        { bid, shipperTenantId: q[0].tenant_id },
+        q[0].tenant_id,
+      );
+      return {
+        bid,
+        loadId: q[0].load_id as string,
+        shipperTenantId: q[0].tenant_id as string,
+      };
+    });
+    await this.loads
+      .transition(submitted.loadId, submitted.shipperTenantId, "bid_received")
+      .catch(() => undefined);
+    return submitted.bid;
+  }
+
+  async updateCarrierBid(ctx: Ctx, bidId: string, body: unknown): Promise<Bid> {
+    const input = UpdateCarrierBidInput.parse(body);
+    return this.marketplaceTx(ctx.tenantId, async (c) => {
+      const current = await c.query(
+        `SELECT * FROM quote.bids WHERE id=$1 AND carrier_id=$2 AND status='submitted'`,
+        [bidId, ctx.tenantId],
+      );
+      if (!current.rows[0]) throw new NotFoundException("active bid not found");
+      const old = this.rowToBid(current.rows[0]);
+      const next = {
+        mode: input.mode ?? old.mode,
+        price: input.price ?? old.price,
+        transitDays: input.transitDays ?? old.transitDays,
+        equipment: input.equipment ?? old.equipment,
+        truckInfo: input.truckInfo ?? old.truckInfo,
+        comment: input.comment ?? old.comment,
+        co2Kg: input.co2Kg ?? old.co2Kg,
+        validUntil: input.validUntil ?? old.validUntil,
+      };
+      const updated = await c.query(
+        `UPDATE quote.bids SET mode=$2, price_amount=$3, price_currency=$4,
+           transit_days=$5, equipment=$6, truck_info=$7, comment=$8, co2_kg=$9,
+           valid_until=$10, updated_at=now() WHERE id=$1 RETURNING *`,
+        [
+          bidId,
+          next.mode,
+          next.price.amount,
+          next.price.currency,
+          next.transitDays,
+          next.equipment ?? null,
+          next.truckInfo ?? null,
+          next.comment ?? null,
+          next.co2Kg ?? null,
+          next.validUntil ?? null,
+        ],
+      );
+      const bid = this.rowToBid(updated.rows[0]);
+      await this.emit(c, ctx, Events.QuoteEventType.BidUpdated, bid.quoteId, { bid }, bid.tenantId);
+      return bid;
+    });
+  }
+
+  async withdrawCarrierBid(ctx: Ctx, bidId: string): Promise<Bid> {
+    return this.marketplaceTx(ctx.tenantId, async (c) => {
+      const { rows } = await c.query(
+        `UPDATE quote.bids SET status='withdrawn', updated_at=now()
+          WHERE id=$1 AND carrier_id=$2 AND status='submitted' RETURNING *`,
+        [bidId, ctx.tenantId],
+      );
+      if (!rows[0]) throw new NotFoundException("active bid not found");
       const bid = this.rowToBid(rows[0]);
-      await this.emit(c, ctx, Events.QuoteEventType.BidSubmitted, quoteId, { bid });
+      await this.emit(c, ctx, Events.QuoteEventType.BidWithdrawn, bid.quoteId, { bid }, bid.tenantId);
       return bid;
     });
   }
@@ -319,10 +524,17 @@ export class QuoteService {
     }
   }
 
-  private async emit(c: PoolClient, ctx: Ctx, type: string, key: string, payload: unknown) {
+  private async emit(
+    c: PoolClient,
+    ctx: Ctx,
+    type: string,
+    key: string,
+    payload: unknown,
+    tenantId = ctx.tenantId,
+  ) {
     const event = makeEvent({
       type,
-      tenantId: ctx.tenantId,
+      tenantId,
       payload,
       actor: { userId: ctx.userId, role: ctx.role },
       correlationId: ctx.correlationId,

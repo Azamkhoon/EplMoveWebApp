@@ -10,12 +10,13 @@ export const SystemRole = z.enum([
   "shipper_member",
   "shipper_viewer",
   "carrier_admin",
+  "carrier_member",
   "dispatcher",
   "driver",
   "broker_admin",
   "broker_agent",
-  "epl_admin",
-  "epl_support",
+  "platform_admin",
+  "platform_support",
 ]);
 export type SystemRole = z.infer<typeof SystemRole>;
 
@@ -43,7 +44,12 @@ export const RegisterInput = z.object({
   password: z.string().min(8),
   name: z.string().min(1),
   tenantName: z.string().min(1), // creates the first tenant + makes user its admin
-  kind: z.enum(["shipper", "carrier"]).default("shipper"), // tenant type
+  vatNumber: z.string().regex(/^\d{9}$/, "VAT/TIN must contain 9 digits"),
+  country: z.string().min(2),
+  city: z.string().min(1),
+  address: z.string().min(3),
+  phone: z.string().min(7),
+  kind: z.enum(["shipper", "carrier", "broker"]).default("shipper"), // tenant type
 });
 export type RegisterInput = z.infer<typeof RegisterInput>;
 

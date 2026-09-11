@@ -22,7 +22,7 @@ export class TrackingWsGateway implements OnModuleDestroy {
   private readonly clients = new Map<WebSocket, string>(); // socket → tenantId
 
   constructor(private readonly tracking: TrackingService) {
-    this.tracking.setBroadcaster((tenantId, state) => this.broadcast(tenantId, state));
+    this.tracking.setBroadcaster((tenantIds, state) => this.broadcast(tenantIds, state));
   }
 
   async attach(server: Server, publicKeyPem: string) {
@@ -45,10 +45,10 @@ export class TrackingWsGateway implements OnModuleDestroy {
     logger.info("ws server attached at /ws/tracking");
   }
 
-  private broadcast(tenantId: string, state: TrackingState) {
+  private broadcast(tenantIds: string[], state: TrackingState) {
     const msg = JSON.stringify({ type: "position", state });
     for (const [ws, tid] of this.clients) {
-      if (tid === tenantId && ws.readyState === ws.OPEN) ws.send(msg);
+      if (tenantIds.includes(tid) && ws.readyState === ws.OPEN) ws.send(msg);
     }
   }
 

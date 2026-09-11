@@ -14,6 +14,7 @@
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean",
     "dev:shipper": "turbo run dev --filter=web-shipper",
+    "dev:portals": "turbo run dev --filter=web-shipper --filter=web-carrier --filter=web-broker --filter=web-admin",
     "dev:backend": "turbo run dev --filter='./services/*'",
     "infra:up": "docker compose -f infra/docker/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker/docker-compose.yml down",

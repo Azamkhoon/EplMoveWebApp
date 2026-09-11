@@ -20,10 +20,18 @@ interface I18nValue {
 const I18nContext = createContext<I18nValue | null>(null);
 
 function readInitial(): Lang {
+  const cookieLang = document.cookie
+    .split("; ")
+    .find((entry) => entry.startsWith(`${STORAGE_KEY}=`))
+    ?.split("=")[1] as Lang | undefined;
+  if (cookieLang && cookieLang in TRANSLATIONS) return cookieLang;
   if (typeof localStorage !== "undefined") {
     const saved = localStorage.getItem(STORAGE_KEY) as Lang | null;
     if (saved && saved in TRANSLATIONS) return saved;
   }
+  const browserLang = navigator.language.toLowerCase();
+  if (browserLang.startsWith("ru")) return "ru";
+  if (browserLang.startsWith("uz")) return "uz";
   return "en";
 }
 
@@ -41,6 +49,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore persistence failures */
     }
+    document.cookie = `${STORAGE_KEY}=${next}; path=/; max-age=31536000; SameSite=Lax`;
   }, []);
 
   const t = useCallback(

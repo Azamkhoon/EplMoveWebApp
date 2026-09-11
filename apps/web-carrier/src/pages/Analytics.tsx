@@ -2,6 +2,7 @@ import { BarChart3, CheckCircle2, Clock, Gavel, Truck, TrendingUp, TrendingDown 
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/Misc";
 import { formatCurrency } from "@/lib/utils";
+import { useI18n } from "@/i18n/LanguageContext";
 
 // All data is mock — a real implementation would query a time-series analytics service.
 
@@ -34,6 +35,7 @@ const maxRev = Math.max(...MONTHLY_REVENUE.map((m) => m.revenue));
 const maxLoads = Math.max(...MONTHLY_REVENUE.map((m) => m.loads));
 
 export function Analytics() {
+  const { t } = useI18n();
   const totalRevenue  = MONTHLY_REVENUE.reduce((s, m) => s + m.revenue, 0);
   const totalLoads    = MONTHLY_REVENUE.reduce((s, m) => s + m.loads, 0);
   const avgOnTime     = Math.round(ROUTE_PERF.reduce((s, r) => s + r.onTime, 0) / ROUTE_PERF.length);
@@ -43,16 +45,16 @@ export function Analytics() {
     <div className="space-y-6">
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <KpiCard label="YTD Revenue"     value={formatCurrency(totalRevenue)} trend="+18%" up icon={<TrendingUp size={18} />} color="emerald" />
-        <KpiCard label="Loads delivered" value={String(totalLoads)}          trend="+12%" up icon={<Truck size={18} />}       color="blue"    />
-        <KpiCard label="On-time rate"    value={`${avgOnTime}%`}             trend="+3%"  up icon={<Clock size={18} />}       color="brand"   />
-        <KpiCard label="Bid win rate"    value={`${winRate}%`}               trend="-4%"  up={false} icon={<Gavel size={18} />} color="amber" />
+        <KpiCard label={t("analytics.ytdRevenue")} value={formatCurrency(totalRevenue)} trend="+18%" up icon={<TrendingUp size={18} />} color="emerald" />
+        <KpiCard label={t("analytics.loadsDelivered")} value={String(totalLoads)} trend="+12%" up icon={<Truck size={18} />} color="blue" />
+        <KpiCard label={t("analytics.onTimeRate")} value={`${avgOnTime}%`} trend="+3%" up icon={<Clock size={18} />} color="brand" />
+        <KpiCard label={t("analytics.bidWinRate")} value={`${winRate}%`} trend="-4%" up={false} icon={<Gavel size={18} />} color="amber" />
       </div>
 
       {/* Revenue bar chart + Loads */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Card>
-          <CardHeader title="Monthly revenue" subtitle="Jan – Jun 2026" />
+          <CardHeader title={t("analytics.monthlyRevenue")} subtitle="Jan – Jun 2026" />
           <CardBody>
             <div className="flex h-44 items-end gap-2">
               {MONTHLY_REVENUE.map((m) => (
@@ -72,7 +74,7 @@ export function Analytics() {
         </Card>
 
         <Card>
-          <CardHeader title="Loads per month" subtitle="Volume trend" />
+          <CardHeader title={t("analytics.loadsPerMonth")} subtitle={t("analytics.volumeTrend")} />
           <CardBody>
             <div className="flex h-44 items-end gap-2">
               {MONTHLY_REVENUE.map((m) => (
@@ -92,16 +94,16 @@ export function Analytics() {
 
       {/* Route profitability */}
       <Card>
-        <CardHeader title="Route profitability" subtitle="By origin-destination pair" />
+        <CardHeader title={t("analytics.routeProfitability")} subtitle={t("analytics.routeSubtitle")} />
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-left text-[11px] uppercase tracking-wide text-slate-400">
-                <th className="px-5 py-3 font-medium">Route</th>
-                <th className="px-4 py-3 font-medium text-right">Loads</th>
-                <th className="px-4 py-3 font-medium text-right">Revenue</th>
-                <th className="px-4 py-3 font-medium">On-time</th>
-                <th className="px-4 py-3 font-medium">Margin</th>
+                <th className="px-5 py-3 font-medium">{t("common.route")}</th>
+                <th className="px-4 py-3 font-medium text-right">{t("common.loads")}</th>
+                <th className="px-4 py-3 font-medium text-right">{t("common.revenue")}</th>
+                <th className="px-4 py-3 font-medium">{t("common.onTime")}</th>
+                <th className="px-4 py-3 font-medium">{t("common.margin")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -135,7 +137,7 @@ export function Analytics() {
 
       {/* Driver performance */}
       <Card>
-        <CardHeader title="Driver performance" subtitle="Ranked by on-time delivery rate" />
+        <CardHeader title={t("analytics.driverPerformance")} subtitle={t("analytics.driverSubtitle")} />
         <CardBody className="space-y-4">
           {[...DRIVER_PERF].sort((a, b) => b.onTime - a.onTime).map((d, i) => (
             <div key={d.name} className="flex items-center gap-4">
@@ -165,7 +167,7 @@ export function Analytics() {
 
       {/* Fleet utilisation donut-style */}
       <Card>
-        <CardHeader title="Fleet utilisation by vehicle type" />
+        <CardHeader title={t("analytics.fleetByType")} />
         <CardBody>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {[

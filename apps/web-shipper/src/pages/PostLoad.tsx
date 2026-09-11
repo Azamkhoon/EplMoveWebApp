@@ -22,15 +22,33 @@ export function PostLoad() {
   const [f, setF] = useState({
     mode: "Ocean" as (typeof MODES)[number],
     commodity: "Industrial machinery parts",
+    cargoDescription: "",
     pickupCity: "Shanghai",
     pickupCountry: "China",
     deliveryCity: "Rotterdam",
     deliveryCountry: "Netherlands",
+    pickupAddress: "",
+    deliveryAddress: "",
     weightKg: "18400",
     volumeM3: "58",
     pieces: "12",
     equipmentCode: "40hc",
+    truckType: "",
+    trailerType: "",
     incoterm: "FOB",
+    cargoValue: "",
+    currency: "USD",
+    readyDate: "",
+    requiredDeliveryDate: "",
+    lengthCm: "",
+    widthCm: "",
+    heightCm: "",
+    temperatureMin: "",
+    temperatureMax: "",
+    dangerousGoods: "false",
+    customsInfo: "",
+    specialInstructions: "",
+    requiredDocuments: "Commercial Invoice, Packing List",
   });
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
 
@@ -45,14 +63,59 @@ export function PostLoad() {
       const input: CreateLoadInput = {
         mode: f.mode,
         commodity: f.commodity,
-        equipmentKind: "container",
+        cargoDescription: f.cargoDescription || undefined,
+        equipmentKind: f.mode === "Road" ? "trailer" : f.mode === "Rail" ? "wagon" : "container",
         equipmentCode: f.equipmentCode || undefined,
-        pickup: { city: f.pickupCity, country: f.pickupCountry, lat: 0, lng: 0 },
-        delivery: { city: f.deliveryCity, country: f.deliveryCountry, lat: 0, lng: 0 },
+        pickup: {
+          city: f.pickupCity,
+          country: f.pickupCountry,
+          address: f.pickupAddress || undefined,
+          lat: 0,
+          lng: 0,
+        },
+        delivery: {
+          city: f.deliveryCity,
+          country: f.deliveryCountry,
+          address: f.deliveryAddress || undefined,
+          lat: 0,
+          lng: 0,
+        },
         weightKg: Number(f.weightKg),
         volumeM3: Number(f.volumeM3),
         pieces: f.pieces ? Number(f.pieces) : undefined,
+        dimensions:
+          f.lengthCm && f.widthCm && f.heightCm
+            ? {
+                lengthCm: Number(f.lengthCm),
+                widthCm: Number(f.widthCm),
+                heightCm: Number(f.heightCm),
+                weightKg: Number(f.weightKg),
+              }
+            : undefined,
+        value: f.cargoValue
+          ? { amount: Number(f.cargoValue), currency: f.currency.toUpperCase() }
+          : undefined,
+        readyDate: f.readyDate ? new Date(`${f.readyDate}T00:00:00Z`).toISOString() : undefined,
+        requiredDeliveryDate: f.requiredDeliveryDate
+          ? new Date(`${f.requiredDeliveryDate}T00:00:00Z`).toISOString()
+          : undefined,
         incoterm: f.incoterm || undefined,
+        truckType: f.truckType || undefined,
+        trailerType: f.trailerType || undefined,
+        temperature:
+          f.temperatureMin || f.temperatureMax
+            ? {
+                minC: f.temperatureMin ? Number(f.temperatureMin) : undefined,
+                maxC: f.temperatureMax ? Number(f.temperatureMax) : undefined,
+              }
+            : undefined,
+        dangerousGoods: f.dangerousGoods === "true",
+        customsInfo: f.customsInfo || undefined,
+        specialInstructions: f.specialInstructions || undefined,
+        requiredDocuments: f.requiredDocuments
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean),
         asDraft,
       };
       const load = await api.createLoad(input);
@@ -128,6 +191,15 @@ export function PostLoad() {
             <Input value={f.commodity} onChange={(e) => set("commodity", e.target.value)} />
           </Field>
 
+          <Field label="Cargo description">
+            <textarea
+              value={f.cargoDescription}
+              onChange={(e) => set("cargoDescription", e.target.value)}
+              rows={2}
+              className="input-base resize-none"
+            />
+          </Field>
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Pickup city">
               <Input value={f.pickupCity} onChange={(e) => set("pickupCity", e.target.value)} />
@@ -135,11 +207,68 @@ export function PostLoad() {
             <Field label="Pickup country">
               <Input value={f.pickupCountry} onChange={(e) => set("pickupCountry", e.target.value)} />
             </Field>
+            <Field label="Pickup address">
+              <Input value={f.pickupAddress} onChange={(e) => set("pickupAddress", e.target.value)} />
+            </Field>
             <Field label="Delivery city">
               <Input value={f.deliveryCity} onChange={(e) => set("deliveryCity", e.target.value)} />
             </Field>
             <Field label="Delivery country">
               <Input value={f.deliveryCountry} onChange={(e) => set("deliveryCountry", e.target.value)} />
+            </Field>
+            <Field label="Delivery address">
+              <Input value={f.deliveryAddress} onChange={(e) => set("deliveryAddress", e.target.value)} />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Field label="Length (cm)">
+              <Input type="number" value={f.lengthCm} onChange={(e) => set("lengthCm", e.target.value)} />
+            </Field>
+            <Field label="Width (cm)">
+              <Input type="number" value={f.widthCm} onChange={(e) => set("widthCm", e.target.value)} />
+            </Field>
+            <Field label="Height (cm)">
+              <Input type="number" value={f.heightCm} onChange={(e) => set("heightCm", e.target.value)} />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Ready date">
+              <Input type="date" value={f.readyDate} onChange={(e) => set("readyDate", e.target.value)} />
+            </Field>
+            <Field label="Required delivery date">
+              <Input type="date" value={f.requiredDeliveryDate} onChange={(e) => set("requiredDeliveryDate", e.target.value)} />
+            </Field>
+            <Field label="Truck type">
+              <Input value={f.truckType} onChange={(e) => set("truckType", e.target.value)} placeholder="e.g. Tractor unit" />
+            </Field>
+            <Field label="Trailer type">
+              <Input value={f.trailerType} onChange={(e) => set("trailerType", e.target.value)} placeholder="e.g. Standard Tent" />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Field label="Cargo value">
+              <Input type="number" value={f.cargoValue} onChange={(e) => set("cargoValue", e.target.value)} />
+            </Field>
+            <Field label="Currency">
+              <Input maxLength={3} value={f.currency} onChange={(e) => set("currency", e.target.value)} />
+            </Field>
+            <Field label="Dangerous goods">
+              <Select value={f.dangerousGoods} onChange={(e) => set("dangerousGoods", e.target.value)}>
+                <option value="false">No</option>
+                <option value="true">Yes</option>
+              </Select>
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Minimum temperature (°C)">
+              <Input type="number" value={f.temperatureMin} onChange={(e) => set("temperatureMin", e.target.value)} />
+            </Field>
+            <Field label="Maximum temperature (°C)">
+              <Input type="number" value={f.temperatureMax} onChange={(e) => set("temperatureMax", e.target.value)} />
             </Field>
           </div>
 
@@ -157,6 +286,16 @@ export function PostLoad() {
 
           <Field label="Incoterm">
             <Input value={f.incoterm} onChange={(e) => set("incoterm", e.target.value)} />
+          </Field>
+
+          <Field label="Customs information">
+            <textarea value={f.customsInfo} onChange={(e) => set("customsInfo", e.target.value)} rows={2} className="input-base resize-none" />
+          </Field>
+          <Field label="Special instructions">
+            <textarea value={f.specialInstructions} onChange={(e) => set("specialInstructions", e.target.value)} rows={2} className="input-base resize-none" />
+          </Field>
+          <Field label="Required documents" hint="Comma-separated">
+            <Input value={f.requiredDocuments} onChange={(e) => set("requiredDocuments", e.target.value)} />
           </Field>
 
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">

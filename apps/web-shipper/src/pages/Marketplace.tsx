@@ -33,11 +33,26 @@ export function Marketplace() {
   useEffect(() => {
     if (!LIVE || !api) return;
     api
-      .listLoads({ status: "posted" })
+      .listLoads()
       .then(setLoads)
       .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load"))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!api || !quote?.id || quote.status !== "open") return;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const current = await api!.getQuote(quote.id);
+        if (active) setQuote(current);
+      } catch {
+        // Notification delivery remains active; retry on the next interval.
+      }
+    };
+    const timer = window.setInterval(refresh, 3000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [quote?.id, quote?.status]);
 
   async function requestQuotes(load: Load) {
     if (!api) return;
@@ -76,12 +91,24 @@ export function Marketplace() {
     }
   }
 
+  async function reject(bidId: string) {
+    if (!api || !quote) return;
+    setBusy(true); setError(null);
+    try {
+      setQuote(await api.rejectBid(quote.id, bidId));
+    } catch (reason) {
+      setError(reason instanceof ApiError ? reason.message : "Failed to reject bid");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!LIVE) {
     return (
       <Card>
         <EmptyState
           icon={<Sparkles size={22} />}
-          title="Marketplace requires the backend"
+          title="Transport Board requires the backend"
           description="Set VITE_API_URL and sign in to request quotes, compare carrier bids, and book shipments end-to-end."
         />
       </Card>
@@ -101,7 +128,7 @@ export function Marketplace() {
             <span className="font-semibold text-slate-900">{shipment.carrierName}</span> ·{" "}
             {shipment.transitDays} days · {formatCurrency(shipment.price.amount)}
           </p>
-          <div className="mt-3"><StatusPill status={"in_transit" as never} /></div>
+          <div className="mt-3"><StatusPill status="booked" /></div>
           <Button className="mt-5" onClick={() => setShipment(null)}>
             Back to marketplace <ArrowRight size={15} />
           </Button>
@@ -131,7 +158,7 @@ export function Marketplace() {
                 description="Post a load first, then request quotes here."
               />
             ) : (
-              loads.map((l) => (
+              loads.filter((load) => ["posted", "open_for_bids", "bid_received"].includes(load.status)).map((l) => (
                 <div
                   key={l.id}
                   className="flex items-center justify-between rounded-lg border border-slate-200 p-3"
@@ -189,6 +216,8 @@ export function Marketplace() {
                           <span className="flex items-center gap-1">
                             <Clock size={12} /> {b.transitDays} days
                           </span>
+                          {b.equipment && <span>{b.equipment}</span>}
+                          {b.truckInfo && <span>{b.truckInfo}</span>}
                           {b.co2Kg != null && (
                             <span className="flex items-center gap-1">
                               <Leaf size={12} /> {b.co2Kg.toLocaleString()} kg CO₂
@@ -201,16 +230,22 @@ export function Marketplace() {
                             </span>
                           )}
                         </div>
+                        {b.comment && <p className="mt-1.5 text-xs text-slate-500">{b.comment}</p>}
                       </div>
                     </div>
                     <div className="flex items-center justify-between gap-4 sm:flex-col sm:items-end">
                       <p className="text-xl font-bold text-slate-900">
                         {formatCurrency(b.price.amount)}
                       </p>
-                      <Button size="sm" disabled={busy} onClick={() => accept(b.id)}>
-                        {busy ? <Loader2 size={14} className="animate-spin" /> : null}
-                        Accept <ArrowRight size={14} />
-                      </Button>
+                      {b.status === "submitted" ? (
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" disabled={busy} onClick={() => reject(b.id)}>Reject</Button>
+                          <Button size="sm" disabled={busy} onClick={() => accept(b.id)}>
+                            {busy ? <Loader2 size={14} className="animate-spin" /> : null}
+                            Accept <ArrowRight size={14} />
+                          </Button>
+                        </div>
+                      ) : <Badge tone={b.status === "accepted" ? "green" : "slate"}>{b.status}</Badge>}
                     </div>
                   </div>
                 ))

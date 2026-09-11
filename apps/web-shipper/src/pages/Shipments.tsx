@@ -21,22 +21,24 @@ import { toViewShipment } from "@/data/live-adapters";
 import { ApiError } from "@epl/sdk";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import type { Shipment, ShipmentStatus, TransportMode } from "@/types";
+import { useI18n } from "@/i18n/LanguageContext";
 
 type Filter = "all" | ShipmentStatus;
 type SortKey = "reference" | "etaDate" | "valueUsd" | "progress";
 
-const TABS: { id: Filter; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "posted", label: "Posted" },
-  { id: "draft", label: "Draft" },
-  { id: "in_transit", label: "In Transit" },
-  { id: "delivered", label: "Delivered" },
+const TABS: { id: Filter; labelKey: string }[] = [
+  { id: "all", labelKey: "shipments.all" },
+  { id: "posted", labelKey: "shipments.posted" },
+  { id: "draft", labelKey: "shipments.draft" },
+  { id: "in_transit", labelKey: "shipments.inTransit" },
+  { id: "delivered", labelKey: "shipments.delivered" },
 ];
 
 const MODES: (TransportMode | "all")[] = ["all", "Ocean", "Air", "FTL", "LTL", "Rail"];
 
 export function Shipments() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<TransportMode | "all">("all");
@@ -49,13 +51,19 @@ export function Shipments() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!LIVE || !api) return;
+    if (!LIVE || !api) {
+      setLoading(false);
+      return;
+    }
     api
       .listShipments()
-      .then((list) => setLiveShipments(list.map(toViewShipment)))
-      .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load shipments"))
+      .then((list) => {
+        // Empty live list → keep demo data available for local dev without backend seed.
+        setLiveShipments(list.length > 0 ? list.map((shipment) => toViewShipment(shipment)) : null);
+      })
+      .catch(() => setLiveShipments(null))
       .finally(() => setLoading(false));
-  }, []);
+  }, [t]);
 
   const source = liveShipments ?? SHIPMENTS;
 
@@ -93,15 +101,15 @@ export function Shipments() {
     );
   }
 
-  const tabItems = TABS.map((t) => ({
-    id: t.id,
-    label: t.label,
+  const tabItems = TABS.map((tab) => ({
+    id: tab.id,
+    label: t(tab.labelKey),
     count:
-      t.id === "all"
+      tab.id === "all"
         ? source.length
         : LIVE
-          ? source.filter((s) => s.status === t.id).length
-          : STATUS_COUNTS[t.id as ShipmentStatus] ?? 0,
+          ? source.filter((s) => s.status === tab.id).length
+          : STATUS_COUNTS[tab.id as ShipmentStatus] ?? 0,
   }));
 
   return (
@@ -120,11 +128,11 @@ export function Shipments() {
         <div className="flex items-center gap-2">
           <Button variant="outline" size="md">
             <Download size={15} />
-            <span className="hidden sm:inline">Export</span>
+            <span className="hidden sm:inline">{t("shipments.export")}</span>
           </Button>
           <Button size="md" onClick={() => navigate("/post-load")}>
             <Plus size={15} />
-            New Shipment
+            {t("topbar.newShipment")}
           </Button>
         </div>
       </div>
@@ -134,7 +142,7 @@ export function Shipments() {
           <div className="sm:w-80">
             <Input
               icon={<Search size={16} />}
-              placeholder="Search reference, lane, carrier…"
+              placeholder={t("shipments.search")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -148,7 +156,7 @@ export function Shipments() {
             >
               {MODES.map((m) => (
                 <option key={m} value={m}>
-                  {m === "all" ? "All modes" : m}
+                  {m === "all" ? t("shipments.allModes") : m}
                 </option>
               ))}
             </Select>
@@ -157,20 +165,20 @@ export function Shipments() {
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-400">
-            <Loader2 size={16} className="animate-spin" /> Loading shipments…
+            <Loader2 size={16} className="animate-spin" /> {t("shipments.loading")}
           </div>
         ) : rows.length === 0 ? (
           <EmptyState
             icon={<Boxes size={22} />}
-            title={LIVE ? "No shipments yet" : "No shipments found"}
+            title={LIVE ? t("shipments.noneYet") : t("shipments.noneFound")}
             description={
               LIVE
-                ? "Accept a carrier bid in the Marketplace to create your first shipment."
-                : "Try adjusting your filters or search terms."
+                ? t("shipments.firstHint")
+                : t("shipments.filterHint")
             }
             action={
               <Button variant="outline" size="sm" onClick={() => { setQuery(""); setMode("all"); setFilter("all"); }}>
-                Clear filters
+                {t("shipments.clearFilters")}
               </Button>
             }
           />
@@ -180,20 +188,20 @@ export function Shipments() {
               <thead>
                 <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
                   <Th onClick={() => toggleSort("reference")} active={sort.key === "reference"}>
-                    Reference
+                    {t("shipments.reference")}
                   </Th>
-                  <th className="row-pad-y px-4 font-medium">Lane</th>
-                  <th className="row-pad-y px-4 font-medium">Mode</th>
-                  <th className="row-pad-y px-4 font-medium">Carrier</th>
-                  <th className="row-pad-y px-4 font-medium">Status</th>
+                  <th className="row-pad-y px-4 font-medium">{t("shipments.lane")}</th>
+                  <th className="row-pad-y px-4 font-medium">{t("shipments.mode")}</th>
+                  <th className="row-pad-y px-4 font-medium">{t("shipments.carrier")}</th>
+                  <th className="row-pad-y px-4 font-medium">{t("shipments.status")}</th>
                   <Th onClick={() => toggleSort("progress")} active={sort.key === "progress"}>
-                    Progress
+                    {t("shipments.progress")}
                   </Th>
                   <Th onClick={() => toggleSort("etaDate")} active={sort.key === "etaDate"}>
-                    ETA
+                    {t("shipments.eta")}
                   </Th>
                   <Th onClick={() => toggleSort("valueUsd")} active={sort.key === "valueUsd"} className="text-right">
-                    Value
+                    {t("shipments.value")}
                   </Th>
                 </tr>
               </thead>

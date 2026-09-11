@@ -10,6 +10,7 @@ const schema = baseEnvSchema.extend({
   DB_PASSWORD: z.string().default("epl"),
   DB_NAME: z.string().default("epl_move"),
   DB_SCHEMA: z.string().default("doc"),
+  SHIPMENT_SVC_URL: z.string().default("http://localhost:8086"),
   PUBSUB_PROJECT_ID: z.string().default("epl-move-local"),
   // Storage: "local" (dev, filesystem) or "gcs" (prod, Cloud Storage).
   STORAGE_DRIVER: z.enum(["local", "gcs"]).default("local"),

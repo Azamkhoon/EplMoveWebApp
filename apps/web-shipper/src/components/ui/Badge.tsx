@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { cn, STATUS_META } from "@/lib/utils";
 import type { ShipmentStatus } from "@/types";
+import { useI18n } from "@/i18n/LanguageContext";
 
 export function StatusPill({
   status,
@@ -9,6 +10,7 @@ export function StatusPill({
   status: ShipmentStatus;
   className?: string;
 }) {
+  const { t } = useI18n();
   const m = STATUS_META[status];
   return (
     <span
@@ -21,7 +23,7 @@ export function StatusPill({
       )}
     >
       <span className={cn("h-1.5 w-1.5 rounded-full", m.dot)} />
-      {m.label}
+      {t(`status.${status}`) === `status.${status}` ? m.label : t(`status.${status}`)}
     </span>
   );
 }

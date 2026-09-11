@@ -4,10 +4,12 @@ import { type LucideIcon } from "lucide-react";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { INVOICES, TENANTS } from "@/data/mock";
 import { Badge } from "@/components/ui/Badge";
+import { useI18n } from "@/i18n/LanguageContext";
 
 const STATUS_TONE = { pending: "blue", paid: "emerald", overdue: "red" } as const;
 
 export function Invoices() {
+  const { t } = useI18n();
   const [tab, setTab]               = useState<"all" | "pending" | "paid" | "overdue">("all");
   const [tenantFilter, setTenantFilter] = useState("all");
 
@@ -25,25 +27,25 @@ export function Invoices() {
     <div className="space-y-5">
       {/* KPIs */}
       <div className="grid grid-cols-3 gap-4">
-        <KpiCard icon={CheckCircle2} cls="text-emerald-600 bg-emerald-50" label="Collected"   value={formatCurrency(collected)} />
-        <KpiCard icon={Clock}        cls="text-blue-600 bg-blue-50"       label="Outstanding" value={formatCurrency(pending)}   />
-        <KpiCard icon={AlertTriangle}cls="text-red-600 bg-red-50"         label="Overdue"     value={formatCurrency(overdue)}   urgent={overdue > 0} />
+        <KpiCard icon={CheckCircle2} cls="text-emerald-600 bg-emerald-50" label={t("status.paid")} value={formatCurrency(collected)} />
+        <KpiCard icon={Clock} cls="text-blue-600 bg-blue-50" label={t("status.pending")} value={formatCurrency(pending)} />
+        <KpiCard icon={AlertTriangle} cls="text-red-600 bg-red-50" label={t("status.overdue")} value={formatCurrency(overdue)} urgent={overdue > 0} />
       </div>
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
         <div className="flex gap-1">
-          {(["all","pending","paid","overdue"] as const).map((t) => (
-            <button key={t} onClick={() => setTab(t)}
+          {(["all","pending","paid","overdue"] as const).map((tabValue) => (
+            <button key={tabValue} onClick={() => setTab(tabValue)}
               className={cn("rounded-md px-2.5 py-1 text-[11px] font-medium capitalize transition-colors",
-                tab === t ? "bg-brand-600 text-white" : "text-slate-500 hover:bg-slate-100")}>
-              {t}
+                tab === tabValue ? "bg-brand-600 text-white" : "text-slate-500 hover:bg-slate-100")}>
+              {tabValue === "all" ? t("common.all") : t(`status.${tabValue}`)}
             </button>
           ))}
         </div>
         <select value={tenantFilter} onChange={(e) => setTenantFilter(e.target.value)} className="input-base w-44 text-xs">
-          <option value="all">All tenants</option>
-          {TENANTS.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          <option value="all">{t("common.all")} {t("nav.tenants").toLocaleLowerCase()}</option>
+          {TENANTS.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.name}</option>)}
         </select>
       </div>
 
@@ -52,7 +54,7 @@ export function Invoices() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-100">
-              {["Invoice","Tenant","Amount","Status","Issued","Paid"].map((h) => (
+              {[t("invoices.invoice"),t("invoices.tenant"),t("invoices.amount"),t("common.status"),t("invoices.issued"),t("status.paid")].map((h) => (
                 <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-slate-500">{h}</th>
               ))}
             </tr>
@@ -63,17 +65,17 @@ export function Invoices() {
                 <td className="px-5 py-3 font-mono text-xs font-semibold text-slate-700">{inv.number}</td>
                 <td className="px-5 py-3 text-xs text-slate-700">{inv.tenantName}</td>
                 <td className="px-5 py-3 text-sm font-semibold text-slate-900">{formatCurrency(inv.amount, inv.currency)}</td>
-                <td className="px-5 py-3"><Badge label={inv.status} tone={STATUS_TONE[inv.status]} /></td>
+                <td className="px-5 py-3"><Badge label={t(`status.${inv.status}`)} tone={STATUS_TONE[inv.status]} /></td>
                 <td className="px-5 py-3 text-xs text-slate-500">{formatDate(inv.issuedAt)}</td>
                 <td className="px-5 py-3 text-xs text-slate-500">{inv.paidAt ? formatDate(inv.paidAt) : "—"}</td>
               </tr>
             ))}
             {visible.length === 0 && (
-              <tr><td colSpan={6} className="py-12 text-center text-sm text-slate-400">No invoices found</td></tr>
+              <tr><td colSpan={6} className="py-12 text-center text-sm text-slate-400">{t("nav.invoices")}: 0</td></tr>
             )}
           </tbody>
         </table>
-        <div className="border-t border-slate-100 px-5 py-2.5 text-xs text-slate-400">{visible.length} invoices</div>
+        <div className="border-t border-slate-100 px-5 py-2.5 text-xs text-slate-400">{visible.length} {t("nav.invoices").toLocaleLowerCase()}</div>
       </div>
     </div>
   );

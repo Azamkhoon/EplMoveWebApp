@@ -11,6 +11,7 @@ import { TokenService } from "@epl/auth";
 import { createDb } from "@epl/db";
 import { createLogger } from "@epl/observability";
 import type { LoginInput, RegisterInput } from "@epl/contracts";
+import { IHamkorService } from "./ihamkor.service";
 import { config } from "../../config";
 import { users, sessions, otpCodes } from "../../db/schema";
 import { TenantClient } from "./tenant.client";
@@ -36,7 +37,10 @@ export class AuthService {
   });
   private tokens!: TokenService;
 
-  constructor(private readonly tenant: TenantClient) {}
+  constructor(
+    private readonly tenant: TenantClient,
+    private readonly ihamkor: IHamkorService,
+  ) {}
 
   private async getTokens(): Promise<TokenService> {
     if (!this.tokens) {
@@ -55,6 +59,10 @@ export class AuthService {
 
   // ── Registration: create user + provision their first tenant (admin) ──
   async register(input: RegisterInput, meta: { ip?: string; ua?: string }): Promise<IssuedAuth> {
+    const companyVerification = await this.ihamkor.verifyCompany({
+      vatNumber: input.vatNumber,
+      companyName: input.tenantName,
+    });
     const existing = await this.db.db
       .select({ id: users.id })
       .from(users)
@@ -70,7 +78,14 @@ export class AuthService {
     const membership = await this.tenant.provisionTenant({
       userId: user!.id,
       tenantName: input.tenantName,
+      vatNumber: input.vatNumber,
+      country: input.country,
+      city: input.city,
+      address: input.address,
+      phone: input.phone,
+      email: input.email,
       kind: input.kind,
+      companyVerified: companyVerification.verified,
     });
 
     return this.issue(user!.id, membership, meta);
@@ -166,7 +181,10 @@ export class AuthService {
     // Revoke the old session row, mint a new one in the same family.
     await this.db.db.update(sessions).set({ revokedAt: new Date() }).where(eq(sessions.id, session.id));
 
-    const membership = await this.tenant.resolveMembership({ userId: session.userId });
+    const membership = await this.tenant.resolveMembership({
+      userId: session.userId,
+      tenantId: session.tenantId ?? undefined,
+    });
     if (!membership) throw new UnauthorizedException("no tenant membership");
 
     return this.issue(session.userId, membership, meta, session.familyId);
@@ -203,6 +221,7 @@ export class AuthService {
     await this.db.db.insert(sessions).values({
       id: sessionId,
       userId,
+      tenantId: m.tenantId,
       familyId: familyId ?? crypto.randomUUID(),
       refreshTokenHash: sha256(refreshToken),
       ip: meta.ip,

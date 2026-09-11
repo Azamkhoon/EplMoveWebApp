@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { StatCard } from "@/components/ui/StatCard";
 import { api } from "@/api/client";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { useI18n } from "@/i18n/LanguageContext";
 
 type InvStatus = "paid" | "pending" | "overdue" | "draft";
 
@@ -53,6 +54,7 @@ function toLocal(inv: Record<string, unknown>): LocalInvoice {
 }
 
 export function Financials() {
+  const { t } = useI18n();
   const [invoices, setInvoices] = useState<LocalInvoice[]>([]);
   const [loading, setLoading]   = useState(true);
   const [paying, setPaying]     = useState<string | null>(null);
@@ -98,35 +100,35 @@ export function Financials() {
     <div className="space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <StatCard label="Total revenue"    value={totalRevenue}  format={formatCurrency} icon={<CircleDollarSign size={18} />} accent="emerald" hint="from paid invoices"   />
-        <StatCard label="Pending payments" value={totalPending}  format={formatCurrency} icon={<Clock size={18} />}            accent="amber"   hint={`${pending.length} invoices`} />
-        <StatCard label="Overdue"          value={totalOverdue}  format={formatCurrency} icon={<TrendingUp size={18} />}       accent="navy"    hint={`${overdue.length} overdue`}  />
-        <StatCard label="Paid invoices"    value={paid.length}   icon={<CheckCircle2 size={18} />} accent="brand" hint="this period" />
+        <StatCard label={t("financials.totalRevenue")} value={totalRevenue} format={formatCurrency} icon={<CircleDollarSign size={18} />} accent="emerald" hint={t("financials.paidInvoices")} />
+        <StatCard label={t("status.pending")} value={totalPending} format={formatCurrency} icon={<Clock size={18} />} accent="amber" hint={`${pending.length} ${t("financials.invoices")}`} />
+        <StatCard label={t("status.overdue")} value={totalOverdue} format={formatCurrency} icon={<TrendingUp size={18} />} accent="navy" hint={`${overdue.length} ${t("status.overdue")}`} />
+        <StatCard label={t("financials.paidInvoices")} value={paid.length} icon={<CheckCircle2 size={18} />} accent="brand" hint={t("financials.paidInvoices")} />
       </div>
 
       <Card>
         <CardHeader
-          title="Invoices"
-          subtitle="All carrier earnings and payment status"
-          action={<Button variant="outline" size="sm"><Download size={14} /> Export</Button>}
+          title={t("financials.invoices")}
+          subtitle={t("page.financials.subtitle")}
+          action={<Button variant="outline" size="sm"><Download size={14} /> {t("common.actions")}</Button>}
         />
 
         {/* Tabs */}
         <div className="flex gap-0 border-b border-slate-100 px-5">
-          {(["all", "pending", "paid", "overdue"] as const).map((t) => (
+          {(["all", "pending", "paid", "overdue"] as const).map((tabValue) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
+              key={tabValue}
+              onClick={() => setTab(tabValue)}
               className={`border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
-                tab === t
+                tab === tabValue
                   ? "border-brand-600 text-brand-700"
                   : "border-transparent text-slate-500 hover:text-slate-800"
               }`}
             >
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-              {t !== "all" && (
+              {tabValue === "all" ? t("common.all") : t(`status.${tabValue}`)}
+              {tabValue !== "all" && (
                 <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">
-                  {t === "pending" ? pending.length : t === "paid" ? paid.length : overdue.length}
+                  {tabValue === "pending" ? pending.length : tabValue === "paid" ? paid.length : overdue.length}
                 </span>
               )}
             </button>
@@ -135,19 +137,19 @@ export function Financials() {
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-20 text-sm text-slate-400">
-            <Loader2 size={16} className="animate-spin" /> Loading invoices…
+            <Loader2 size={16} className="animate-spin" /> {t("common.loading")}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px] text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-left text-[11px] uppercase tracking-wide text-slate-400">
-                  <th className="px-5 py-3 font-medium">Invoice</th>
-                  <th className="px-4 py-3 font-medium">Issued</th>
-                  <th className="px-4 py-3 font-medium">Due date</th>
-                  <th className="px-4 py-3 font-medium text-right">Amount</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium text-right">Action</th>
+                  <th className="px-5 py-3 font-medium">{t("financials.invoices")}</th>
+                  <th className="px-4 py-3 font-medium">{t("common.date")}</th>
+                  <th className="px-4 py-3 font-medium">{t("financials.dueDate")}</th>
+                  <th className="px-4 py-3 font-medium text-right">{t("financials.amount")}</th>
+                  <th className="px-4 py-3 font-medium">{t("common.status")}</th>
+                  <th className="px-4 py-3 font-medium text-right">{t("common.actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -167,7 +169,7 @@ export function Financials() {
                         {formatCurrency(inv.amount)}
                       </td>
                       <td className="px-4 py-3.5">
-                        <Badge tone={meta.tone}>{meta.label}</Badge>
+                        <Badge tone={meta.tone}>{t(`status.${inv.status}`)}</Badge>
                       </td>
                       <td className="px-4 py-3.5 text-right">
                         {inv.status !== "paid" ? (

@@ -6,6 +6,7 @@ import type { Client, ClientType } from "@/types";
 import { Modal } from "@/components/ui/Modal";
 import { Field, Input } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
+import { useI18n } from "@/i18n/LanguageContext";
 
 const TYPE_CLS: Record<ClientType, string> = {
   importer:  "bg-blue-100 text-blue-700",
@@ -17,6 +18,7 @@ const TYPE_CLS: Record<ClientType, string> = {
 const BLANK: Partial<Client> = { type: "importer", country: "" };
 
 export function Clients() {
+  const { t } = useI18n();
   const [list, setList]     = useState<Client[]>(CLIENTS);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<ClientType | "all">("all");
@@ -65,7 +67,7 @@ export function Clients() {
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-400/20"
-              placeholder="Search clients…"
+              placeholder={t("clients.search")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -82,7 +84,7 @@ export function Clients() {
             <button key={t} onClick={() => setFilter(t)}
               className={cn("shrink-0 rounded-md px-2.5 py-1 text-[11px] font-medium capitalize transition-colors",
                 filter === t ? "bg-teal-600 text-white" : "text-slate-500 hover:bg-slate-100")}>
-              {t}
+              {t === "all" ? "All" : t}
             </button>
           ))}
         </div>
@@ -104,7 +106,7 @@ export function Clients() {
                     </span>
                   </div>
                   <p className="mt-0.5 text-[11px] text-slate-400">{c.country} · {c.taxId}</p>
-                  <p className="text-[10px] text-slate-400">{c.declarationCount} declarations</p>
+                  <p className="text-[10px] text-slate-400">{c.declarationCount} {t("nav.declarations").toLocaleLowerCase()}</p>
                 </div>
               </div>
             </button>
@@ -112,13 +114,13 @@ export function Clients() {
           {visible.length === 0 && (
             <div className="flex flex-col items-center gap-2 py-12 text-slate-400">
               <Building2 size={32} className="opacity-30" />
-              <p className="text-sm">No clients found</p>
+              <p className="text-sm">{t("nav.clients")}: 0</p>
             </div>
           )}
         </div>
 
         <div className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-400">
-          {visible.length} client{visible.length !== 1 ? "s" : ""}
+          {visible.length} {t("nav.clients").toLocaleLowerCase()}
         </div>
       </div>
 
@@ -127,7 +129,7 @@ export function Clients() {
         {!selected ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-slate-400">
             <ChevronRight size={40} className="opacity-20" />
-            <p className="text-sm">Select a client to view details</p>
+            <p className="text-sm">{t("common.view")} {t("common.client").toLocaleLowerCase()}</p>
           </div>
         ) : (
           <div className="p-6">
@@ -147,16 +149,16 @@ export function Clients() {
                   <p className="text-sm text-slate-500">{selected.taxId}</p>
                 </div>
               </div>
-              <Button variant="secondary" className="shrink-0">Edit</Button>
+              <Button variant="secondary" className="shrink-0">{t("common.view")}</Button>
             </div>
 
             <div className="mb-5 grid grid-cols-2 gap-4 rounded-xl bg-slate-50 p-4 md:grid-cols-3">
               <InfoField label="Contact Name"  value={selected.contactName} />
-              <InfoField label="Email"         value={selected.contactEmail} />
-              <InfoField label="Phone"         value={selected.contactPhone} />
-              <InfoField label="Address"       value={selected.address} />
+              <InfoField label={t("login.email")} value={selected.contactEmail} />
+              <InfoField label={t("clients.contact")} value={selected.contactPhone} />
+              <InfoField label={t("clients.country")} value={selected.address} />
               <InfoField label="Authorized"    value={selected.authorizedAt ? formatDate(selected.authorizedAt) : "—"} />
-              <InfoField label="Declarations"  value={String(selected.declarationCount)} />
+              <InfoField label={t("nav.declarations")} value={String(selected.declarationCount)} />
             </div>
 
             {selected.eoriNumber && (
@@ -173,7 +175,7 @@ export function Clients() {
       </div>
 
       {/* Add modal */}
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add Client" size="xl">
+      <Modal open={showAdd} onClose={() => setShowAdd(false)} title={t("clients.add")} size="xl">
         <div className="space-y-4">
           <div className="flex gap-2">
             {(["importer","exporter","consignee","consignor"] as ClientType[]).map((t) => (
@@ -185,18 +187,18 @@ export function Clients() {
             ))}
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Company Name"><Input value={form.name ?? ""} onChange={(e) => patch({ name: e.target.value })} /></Field>
-            <Field label="Country Code"><Input value={form.country ?? ""} onChange={(e) => patch({ country: e.target.value })} maxLength={2} placeholder="US" /></Field>
-            <Field label="Tax ID"><Input value={form.taxId ?? ""} onChange={(e) => patch({ taxId: e.target.value })} /></Field>
+            <Field label={t("clients.company")}><Input value={form.name ?? ""} onChange={(e) => patch({ name: e.target.value })} /></Field>
+            <Field label={t("clients.country")}><Input value={form.country ?? ""} onChange={(e) => patch({ country: e.target.value })} maxLength={2} placeholder="US" /></Field>
+            <Field label={t("clients.tin")}><Input value={form.taxId ?? ""} onChange={(e) => patch({ taxId: e.target.value })} /></Field>
             <Field label="EORI Number (optional)"><Input value={form.eoriNumber ?? ""} onChange={(e) => patch({ eoriNumber: e.target.value || null })} /></Field>
             <Field label="Contact Name"><Input value={form.contactName ?? ""} onChange={(e) => patch({ contactName: e.target.value })} /></Field>
-            <Field label="Contact Email"><Input type="email" value={form.contactEmail ?? ""} onChange={(e) => patch({ contactEmail: e.target.value })} /></Field>
-            <Field label="Contact Phone"><Input value={form.contactPhone ?? ""} onChange={(e) => patch({ contactPhone: e.target.value })} /></Field>
+            <Field label={t("login.email")}><Input type="email" value={form.contactEmail ?? ""} onChange={(e) => patch({ contactEmail: e.target.value })} /></Field>
+            <Field label={t("clients.contact")}><Input value={form.contactPhone ?? ""} onChange={(e) => patch({ contactPhone: e.target.value })} /></Field>
             <Field label="Address"><Input value={form.address ?? ""} onChange={(e) => patch({ address: e.target.value })} /></Field>
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button onClick={save} disabled={!form.name || !form.taxId}>Add Client</Button>
+            <Button variant="secondary" onClick={() => setShowAdd(false)}>{t("common.cancel")}</Button>
+            <Button onClick={save} disabled={!form.name || !form.taxId}>{t("clients.add")}</Button>
           </div>
         </div>
       </Modal>

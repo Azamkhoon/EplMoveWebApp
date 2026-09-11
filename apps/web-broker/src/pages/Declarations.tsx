@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { useI18n } from "@/i18n/LanguageContext";
 
 const STATUS_COLORS: Record<DeclarationStatus, string> = {
   draft:          "bg-slate-100 text-slate-600 border-slate-200",
@@ -52,6 +53,7 @@ const BLANK: Partial<Declaration> = {
 };
 
 export function Declarations() {
+  const { t } = useI18n();
   const [list, setList]       = useState<Declaration[]>(DECLARATIONS);
   const [tab, setTab]         = useState("all");
   const [search, setSearch]   = useState("");
@@ -123,7 +125,7 @@ export function Declarations() {
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-400/20"
-              placeholder="Search declarations…"
+              placeholder={t("declarations.search")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -136,11 +138,11 @@ export function Declarations() {
 
         {/* Tabs */}
         <div className="flex gap-0.5 overflow-x-auto border-b border-slate-100 px-3 py-2">
-          {TABS.map((t) => (
-            <button key={t.key} onClick={() => setTab(t.key)}
+          {TABS.map((tabItem) => (
+            <button key={tabItem.key} onClick={() => setTab(tabItem.key)}
               className={cn("shrink-0 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
-                tab === t.key ? "bg-teal-600 text-white" : "text-slate-500 hover:bg-slate-100")}>
-              {t.label}
+                tab === tabItem.key ? "bg-teal-600 text-white" : "text-slate-500 hover:bg-slate-100")}>
+              {tabItem.key === "all" ? t("common.all") : t(`status.${tabItem.key === "under_review" ? "review" : tabItem.key === "docs_requested" ? "pending" : tabItem.key}`)}
             </button>
           ))}
         </div>
@@ -150,7 +152,7 @@ export function Declarations() {
           {visible.length === 0 && (
             <div className="flex flex-col items-center gap-2 py-12 text-slate-400">
               <FileText size={32} className="opacity-30" />
-              <p className="text-sm">No declarations found</p>
+              <p className="text-sm">{t("declarations.none")}</p>
             </div>
           )}
           {visible.map((dec) => (
@@ -180,7 +182,7 @@ export function Declarations() {
         </div>
 
         <div className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-400">
-          {visible.length} declaration{visible.length !== 1 ? "s" : ""}
+          {visible.length} {t("nav.declarations").toLocaleLowerCase()}
         </div>
       </div>
 
@@ -189,7 +191,7 @@ export function Declarations() {
         {!selected ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-slate-400">
             <ChevronRight size={40} className="opacity-20" />
-            <p className="text-sm">Select a declaration to view details</p>
+            <p className="text-sm">{t("common.view")} {t("page.declarations.title").toLocaleLowerCase()}</p>
           </div>
         ) : (
           <DeclarationDetail dec={selected} onAdvance={() => advance(selected)} />
@@ -197,11 +199,11 @@ export function Declarations() {
       </div>
 
       {/* Create modal */}
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New Declaration" size="xl">
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t("declarations.new")} size="xl">
         <div className="space-y-5">
           {/* Type selector */}
           <div>
-            <label className="mb-2 block text-xs font-semibold text-slate-700">Declaration Type</label>
+            <label className="mb-2 block text-xs font-semibold text-slate-700">{t("declarations.type")}</label>
             <div className="flex flex-wrap gap-2">
               {(["import","export","transit","temp_import","temp_export"] as DeclarationType[]).map((t) => (
                 <button key={t} onClick={() => patch({ type: t })}
@@ -214,30 +216,30 @@ export function Declarations() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Client">
+            <Field label={t("declarations.client")}>
               <select value={form.clientId ?? ""} onChange={(e) => patch({ clientId: e.target.value })}
                 className="input-base">
-                <option value="">Select client…</option>
+                <option value="">{t("common.client")}</option>
                 {CLIENTS.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </Field>
-            <Field label="Shipment Ref">
+            <Field label={t("declarations.shipment")}>
               <Input value={form.shipmentRef ?? ""} onChange={(e) => patch({ shipmentRef: e.target.value })} placeholder="SHP-XXXX" />
             </Field>
-            <Field label="Origin Country">
+            <Field label={t("shipments.origin")}>
               <Input value={form.origin ?? ""} onChange={(e) => patch({ origin: e.target.value })} placeholder="e.g. CN" maxLength={2} />
             </Field>
-            <Field label="Destination Country">
+            <Field label={t("shipments.destination")}>
               <Input value={form.destination ?? ""} onChange={(e) => patch({ destination: e.target.value })} placeholder="e.g. US" maxLength={2} />
             </Field>
-            <Field label="HS Code">
+            <Field label={t("duty.hsCode")}>
               <Input value={form.hsCode ?? ""} onChange={(e) => patch({ hsCode: e.target.value })} placeholder="e.g. 8471.30" />
               {hsMatch && <p className="mt-1 text-[11px] text-teal-600">{hsMatch.description} · Duty {hsMatch.dutyRate}%</p>}
             </Field>
-            <Field label="Deadline (optional)">
+            <Field label={t("financials.due")}>
               <Input type="date" value={form.deadline ?? ""} onChange={(e) => patch({ deadline: e.target.value || null })} />
             </Field>
-            <Field label="Total Value (USD)">
+            <Field label={t("declarations.value")}>
               <Input type="number" value={form.totalValue ?? ""} onChange={(e) => patch({ totalValue: Number(e.target.value) })} placeholder="0" />
             </Field>
             <Field label="Declarant">
@@ -249,16 +251,16 @@ export function Declarations() {
             </Field>
           </div>
 
-          <Field label="Cargo Description">
-            <Textarea value={form.description ?? ""} onChange={(e) => patch({ description: e.target.value })} rows={2} placeholder="Describe the goods…" />
+          <Field label={t("hs.description")}>
+            <Textarea value={form.description ?? ""} onChange={(e) => patch({ description: e.target.value })} rows={2} placeholder={t("hs.description")} />
           </Field>
 
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button variant="secondary" onClick={() => setShowCreate(false)}>{t("common.cancel")}</Button>
             <Button
               onClick={save}
               disabled={!form.clientId || !form.origin || !form.destination || !form.hsCode}>
-              Create Declaration
+              {t("declarations.create")}
             </Button>
           </div>
         </div>
@@ -268,6 +270,7 @@ export function Declarations() {
 }
 
 function DeclarationDetail({ dec, onAdvance }: { dec: Declaration; onAdvance: () => void }) {
+  const { t } = useI18n();
   const canAdvance = ["draft","submitted","under_review","docs_requested","approved"].includes(dec.status);
   const hsInfo     = HS_CODES.find((h) => h.code === dec.hsCode);
   const nextLabel: Record<string, string> = {
@@ -323,29 +326,29 @@ function DeclarationDetail({ dec, onAdvance }: { dec: Declaration; onAdvance: ()
 
       {/* Info grid */}
       <div className="mb-6 grid grid-cols-2 gap-4 rounded-xl bg-slate-50 p-4 md:grid-cols-3">
-        <InfoField label="Origin" value={dec.origin} />
-        <InfoField label="Destination" value={dec.destination} />
-        <InfoField label="Shipment Ref" value={dec.shipmentRef} mono />
-        <InfoField label="HS Code" value={dec.hsCode} mono />
-        <InfoField label="Description" value={dec.description} />
-        {dec.deadline && <InfoField label="Deadline" value={formatDate(dec.deadline)} urgent={new Date(dec.deadline) <= new Date("2026-06-14")} />}
+        <InfoField label={t("shipments.origin")} value={dec.origin} />
+        <InfoField label={t("shipments.destination")} value={dec.destination} />
+        <InfoField label={t("declarations.shipment")} value={dec.shipmentRef} mono />
+        <InfoField label={t("duty.hsCode")} value={dec.hsCode} mono />
+        <InfoField label={t("hs.description")} value={dec.description} />
+        {dec.deadline && <InfoField label={t("financials.due")} value={formatDate(dec.deadline)} urgent={new Date(dec.deadline) <= new Date("2026-06-14")} />}
       </div>
 
       {/* Financials */}
       <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
-        <h3 className="mb-3 text-sm font-semibold text-slate-800">Duty & Tax Estimate</h3>
+        <h3 className="mb-3 text-sm font-semibold text-slate-800">{t("page.dutyCalc.title")}</h3>
         {hsInfo && (
           <p className="mb-3 text-xs text-slate-500">{hsInfo.description} · Duty rate: <strong>{hsInfo.dutyRate}%</strong> · VAT: <strong>{hsInfo.vatRate}%</strong>
             {hsInfo.notes && <span className="ml-2 text-amber-600">⚠ {hsInfo.notes}</span>}
           </p>
         )}
         <div className="grid grid-cols-3 gap-3">
-          <FinRow label="Customs Value"    value={formatCurrency(dec.totalValue, dec.currency)} />
-          <FinRow label="Customs Duty"     value={formatCurrency(dec.dutyAmount, dec.currency)} />
-          <FinRow label="VAT"              value={formatCurrency(dec.vatAmount, dec.currency)} />
+          <FinRow label={t("duty.customsValue")} value={formatCurrency(dec.totalValue, dec.currency)} />
+          <FinRow label={t("duty.importDuty")} value={formatCurrency(dec.dutyAmount, dec.currency)} />
+          <FinRow label={t("duty.vat")} value={formatCurrency(dec.vatAmount, dec.currency)} />
         </div>
         <div className="mt-3 border-t border-slate-100 pt-3">
-          <FinRow label="Total Liability" value={formatCurrency(dec.dutyAmount + dec.vatAmount, dec.currency)} large />
+          <FinRow label={t("duty.total")} value={formatCurrency(dec.dutyAmount + dec.vatAmount, dec.currency)} large />
         </div>
       </div>
 

@@ -16,6 +16,9 @@ const schema = baseEnvSchema.extend({
   REFRESH_TOKEN_TTL: z.coerce.number().default(2592000),
   // tenant-svc base URL for resolving memberships/roles at login
   TENANT_SVC_URL: z.string().default("http://localhost:8082"),
+  IHAMKOR_API_URL: z.string().url().optional(),
+  IHAMKOR_API_TOKEN: z.string().min(1).optional(),
+  COMPANY_VERIFICATION_MODE: z.enum(["required", "optional"]).default("required"),
 });
 
 export type AppConfig = z.infer<typeof schema>;
