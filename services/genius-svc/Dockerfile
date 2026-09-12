@@ -8,13 +8,12 @@ FROM base AS build
 WORKDIR /repo
 COPY . .
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @epl/genius-svc build
+RUN pnpm turbo build --filter=@epl/genius-svc...
+RUN pnpm --filter=@epl/genius-svc deploy --prod /out
 
 FROM base AS runtime
 WORKDIR /app
-COPY --from=build /repo/services/genius-svc/dist ./dist
-COPY --from=build /repo/services/genius-svc/package.json ./
-COPY --from=build /repo/node_modules ./node_modules
+COPY --from=build /out .
 ENV NODE_ENV=production
 EXPOSE 8080
 CMD ["node", "dist/main.js"]

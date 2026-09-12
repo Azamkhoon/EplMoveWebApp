@@ -8,13 +8,12 @@ FROM base AS build
 WORKDIR /repo
 COPY . .
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @epl/api-gateway build
+RUN pnpm turbo build --filter=@epl/api-gateway...
+RUN pnpm --filter=@epl/api-gateway deploy --prod /out
 
 FROM base AS runtime
 WORKDIR /app
-COPY --from=build /repo/services/api-gateway/dist ./dist
-COPY --from=build /repo/services/api-gateway/package.json ./
-COPY --from=build /repo/node_modules ./node_modules
+COPY --from=build /out .
 ENV NODE_ENV=production
 EXPOSE 8080
 CMD ["node", "dist/main.js"]

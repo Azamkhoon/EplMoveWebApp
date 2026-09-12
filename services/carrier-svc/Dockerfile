@@ -8,13 +8,12 @@ FROM base AS build
 WORKDIR /repo
 COPY . .
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @epl/carrier-svc build
+RUN pnpm turbo build --filter=@epl/carrier-svc...
+RUN pnpm --filter=@epl/carrier-svc deploy --prod /out
 
 FROM base AS runtime
 WORKDIR /app
-COPY --from=build /repo/services/carrier-svc/dist ./dist
-COPY --from=build /repo/services/carrier-svc/package.json ./
-COPY --from=build /repo/node_modules ./node_modules
+COPY --from=build /out .
 ENV NODE_ENV=production
 EXPOSE 8080
 CMD ["node", "dist/main.js"]
