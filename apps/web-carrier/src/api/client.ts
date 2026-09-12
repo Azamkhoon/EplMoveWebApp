@@ -1,9 +1,6 @@
 import { EplClient } from "@epl/sdk";
 
-/**
- * API mode. The carrier portal is live-only — it exists to interact with the
- * real marketplace. Without VITE_API_URL the app renders a setup notice.
- */
+/** Live API connection. Missing configuration never enables a demo session. */
 export const API_URL = import.meta.env.VITE_API_URL as string | undefined;
 export const LIVE = Boolean(API_URL);
 

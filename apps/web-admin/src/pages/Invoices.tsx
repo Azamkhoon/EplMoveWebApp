@@ -9,6 +9,15 @@ import { useI18n } from "@/i18n/LanguageContext";
 const STATUS_TONE = { pending: "blue", paid: "emerald", overdue: "red" } as const;
 
 export function Invoices() {
+  return (
+    <section role="status" className="rounded-xl border border-slate-200 bg-white p-8">
+      <h1 className="text-lg font-semibold">Invoices</h1>
+      <p className="mt-2 text-slate-600">This feature is not yet connected to live records. Data entry is unavailable until activation is complete.</p>
+    </section>
+  );
+}
+
+export function InvoicesView() {
   const { t } = useI18n();
   const [tab, setTab]               = useState<"all" | "pending" | "paid" | "overdue">("all");
   const [tenantFilter, setTenantFilter] = useState("all");

@@ -108,22 +108,12 @@ export function ShipmentDetail() {
       setBrokerId(shipment.brokerTenantId ?? brokerCompanies[0]?.id ?? "");
       setCarrierId(carrierCompanies[0]?.id ?? "");
     } catch (reason) {
-      // Backend unavailable or shipment missing — fall back to demo data when possible.
-      if (mock) {
-        setLiveShipment(null);
-        setDomainShipment(null);
-        setDocuments([]);
-        setRequests([]);
-        setNotFound(false);
-        setError(
-          reason instanceof ApiError
-            ? `${reason.message} — showing demo shipment data.`
-            : "Backend unavailable — showing demo shipment data.",
-        );
-      } else {
-        setNotFound(true);
-        setError(reason instanceof ApiError ? reason.message : "Shipment could not be loaded");
-      }
+      setLiveShipment(null);
+      setDomainShipment(null);
+      setDocuments([]);
+      setRequests([]);
+      setNotFound(reason instanceof ApiError && reason.status === 404);
+      setError(reason instanceof ApiError ? reason.message : "Shipment could not be loaded");
     } finally {
       setLoading(false);
     }

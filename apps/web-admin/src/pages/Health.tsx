@@ -5,6 +5,15 @@ import { SERVICE_HEALTH, type ServiceHealth } from "@/data/mock";
 import { useI18n } from "@/i18n/LanguageContext";
 
 export function Health() {
+  return (
+    <section role="status" className="rounded-xl border border-slate-200 bg-white p-8">
+      <h1 className="text-lg font-semibold">Health</h1>
+      <p className="mt-2 text-slate-600">This feature is not yet connected to live records. Data entry is unavailable until activation is complete.</p>
+    </section>
+  );
+}
+
+export function HealthView() {
   const { t } = useI18n();
   const [services, setServices] = useState<ServiceHealth[]>(SERVICE_HEALTH);
   const [refreshing, setRefreshing] = useState(false);

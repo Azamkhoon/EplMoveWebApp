@@ -7,14 +7,12 @@ import { useAuth } from "@/api/AuthContext";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { useI18n } from "@/i18n/LanguageContext";
 
-const DEMO_EMAIL    = "admin@epl-move.internal";
-const DEMO_PASSWORD = "admin123";
 
 export function Login() {
   const auth = useAuth();
   const { t } = useI18n();
-  const [email, setEmail]       = useState(DEMO_EMAIL);
-  const [password, setPassword] = useState(DEMO_PASSWORD);
+  const [email, setEmail]       = useState("");
+  const [password, setPassword] = useState("");
   const [busy, setBusy]         = useState(false);
   const [error, setError]       = useState<string | null>(null);
 
@@ -40,7 +38,7 @@ export function Login() {
           <div className="mb-6 flex items-center gap-2 rounded-lg bg-brand-900/40 px-4 py-3 ring-1 ring-brand-700/50">
             <ShieldCheck size={15} className="shrink-0 text-brand-400" />
             <p className="text-xs text-brand-300">
-              {t("login.demo")}
+              Sign in with your administrator account.
             </p>
           </div>
 

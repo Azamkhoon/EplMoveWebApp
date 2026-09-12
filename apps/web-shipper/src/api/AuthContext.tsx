@@ -10,12 +10,11 @@ import {
   DEMO_SESSION_KEY,
   LIVE,
   restoreToken,
-  setDemoMode,
 } from "./client";
 
 
 interface AuthState {
-  live: boolean; // true = real backend, false = mock mode
+  live: boolean;
   authed: boolean;
   loading: boolean;
   login: (email: string, password: string, tenantSlug?: string) => Promise<void>;
@@ -39,18 +38,18 @@ interface AuthState {
 const AuthCtx = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // In mock mode there is no auth — treat as always authed.
-  const [authed, setAuthed] = useState(!LIVE);
+  const [authed, setAuthed] = useState(false);
   const [loading, setLoading] = useState(LIVE);
 
   useEffect(() => {
-    if (sessionStorage.getItem(DEMO_SESSION_KEY)) { setAuthed(true); setLoading(false); return; }
+    sessionStorage.removeItem(DEMO_SESSION_KEY);
     if (!LIVE || !api) { setLoading(false); return; }
     restoreToken();
     // Try to silently restore a session via the refresh cookie.
     api
       .refresh()
       .then((t) => setAuthed(Boolean(t)))
+      .catch(() => setAuthed(false))
       .finally(() => setLoading(false));
   }, []);
 
@@ -60,13 +59,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     async login(email, password, tenantSlug) {
       sessionStorage.removeItem(DEMO_SESSION_KEY);
-      setDemoMode(false);
       await api!.login({ email, password, tenantSlug });
       setAuthed(true);
     },
     async register(input) {
       sessionStorage.removeItem(DEMO_SESSION_KEY);
-      setDemoMode(false);
       await api!.register(input);
       setAuthed(true);
     },
@@ -76,10 +73,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthed(true);
     },
     async logout() {
-      const wasDemo = Boolean(sessionStorage.getItem(DEMO_SESSION_KEY));
       sessionStorage.removeItem(DEMO_SESSION_KEY);
-      setDemoMode(false);
-      if (!wasDemo) await api?.logout();
+      await api?.logout();
       setAuthed(false);
     },
   };

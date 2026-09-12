@@ -124,7 +124,6 @@ export function Dashboard() {
           label={t("dashboard.active")}
           value={active.length}
           icon={<Boxes size={18} />}
-          trend={8}
           accent="brand"
           hint={`${openQuotes.length} ${t("dashboard.awaitingCarrier")}`}
         />
@@ -132,15 +131,13 @@ export function Dashboard() {
           label={t("dashboard.inTransit")}
           value={inTransit.length}
           icon={<Truck size={18} />}
-          trend={3}
           accent="amber"
           hint={`${shipmentsData.filter((s) => s.status === "delayed").length} ${t("dashboard.delayed")}`}
         />
         <StatCard
           label={LIVE ? t("shipments.delivered") : t("dashboard.delivered90")}
-          value={LIVE ? delivered.length : delivered.length + 61}
+          value={delivered.length}
           icon={<Clock size={18} />}
-          trend={12}
           accent="emerald"
           hint={`${ON_TIME_RATE}% ${t("dashboard.onTime")}`}
         />
@@ -149,7 +146,6 @@ export function Dashboard() {
           value={totalSpend}
           format={(n) => formatCurrency(n)}
           icon={<CircleDollarSign size={18} />}
-          trend={-4}
           accent="navy"
           hint={t("dashboard.priorPeriod")}
         />

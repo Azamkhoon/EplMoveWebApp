@@ -21,8 +21,8 @@ const GOLD = "#c8a24a";
 
 const PORTAL_URLS: Record<Role, string> = {
   customer: "/",
-  carrier: import.meta.env.VITE_PORTAL_CARRIER_URL ?? "http://localhost:5174",
-  broker: import.meta.env.VITE_PORTAL_BROKER_URL ?? "http://localhost:5175",
+  carrier: import.meta.env.VITE_PORTAL_CARRIER_URL ?? (import.meta.env.DEV ? "http://localhost:5174" : "https://epl-move-web-carrier.vercel.app"),
+  broker: import.meta.env.VITE_PORTAL_BROKER_URL ?? (import.meta.env.DEV ? "http://localhost:5175" : "https://epl-move-web-broker.vercel.app"),
 };
 
 

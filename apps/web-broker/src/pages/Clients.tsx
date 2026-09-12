@@ -18,6 +18,15 @@ const TYPE_CLS: Record<ClientType, string> = {
 const BLANK: Partial<Client> = { type: "importer", country: "" };
 
 export function Clients() {
+  return (
+    <section role="status" className="rounded-xl border border-slate-200 bg-white p-8">
+      <h1 className="text-lg font-semibold">Clients</h1>
+      <p className="mt-2 text-slate-600">This feature is not yet connected to live records. Data entry is unavailable until activation is complete.</p>
+    </section>
+  );
+}
+
+export function ClientsView() {
   const { t } = useI18n();
   const [list, setList]     = useState<Client[]>(CLIENTS);
   const [search, setSearch] = useState("");

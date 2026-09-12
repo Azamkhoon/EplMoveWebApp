@@ -53,6 +53,15 @@ const BLANK: Partial<Declaration> = {
 };
 
 export function Declarations() {
+  return (
+    <section role="status" className="rounded-xl border border-slate-200 bg-white p-8">
+      <h1 className="text-lg font-semibold">Declarations</h1>
+      <p className="mt-2 text-slate-600">This feature is not yet connected to live records. Data entry is unavailable until activation is complete.</p>
+    </section>
+  );
+}
+
+export function DeclarationsView() {
   const { t } = useI18n();
   const [list, setList]       = useState<Declaration[]>(DECLARATIONS);
   const [tab, setTab]         = useState("all");

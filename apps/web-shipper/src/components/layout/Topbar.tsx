@@ -88,9 +88,9 @@ function AccountMenu() {
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-white py-1 pl-1 pr-2.5 transition hover:bg-slate-50"
       >
-        <Avatar name="Acme Logistics" size="sm" />
+        <Avatar name="My account" size="sm" />
         <div className="hidden leading-tight lg:block">
-          <p className="text-sm font-medium text-slate-800">Acme Logistics</p>
+          <p className="text-sm font-medium text-slate-800">My account</p>
           <p className="text-[11px] text-slate-400">Customer · Pro</p>
         </div>
       </button>

@@ -8,6 +8,15 @@ import { Modal } from "@/components/ui/Modal";
 import { useI18n } from "@/i18n/LanguageContext";
 
 export function Tenants() {
+  return (
+    <section role="status" className="rounded-xl border border-slate-200 bg-white p-8">
+      <h1 className="text-lg font-semibold">Tenants</h1>
+      <p className="mt-2 text-slate-600">This feature is not yet connected to live records. Data entry is unavailable until activation is complete.</p>
+    </section>
+  );
+}
+
+export function TenantsView() {
   const { t: tr } = useI18n();
   const [tenants, setTenants] = useState<Tenant[]>(TENANTS);
   const [search, setSearch]   = useState("");

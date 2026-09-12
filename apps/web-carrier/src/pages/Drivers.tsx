@@ -25,13 +25,7 @@ interface Driver {
   joinedDate: string;
 }
 
-const INITIAL: Driver[] = [
-  { id: "D-001", name: "Marcus Webb",      phone: "+1 713 555 0121", email: "m.webb@oceanflex.test",     licenseNo: "TX-DL-881234", licenseExpiry: "2026-08-01", passportNo: "US-998823411", passportExpiry: "2028-03-15", vehicle: "V-001 · TX-4821", currentLoad: "SHP-0041", status: "driving",   totalLoads: 142, onTime: 94, joinedDate: "2022-03-10" },
-  { id: "D-002", name: "Elena Sorokina",   phone: "+49 30 555 9922",  email: "e.sorokina@oceanflex.test", licenseNo: "DE-DL-220981", licenseExpiry: "2027-01-20", passportNo: "RU-441982001", passportExpiry: "2027-11-05", vehicle: "V-004 · NY-7753", currentLoad: "SHP-0034", status: "available", totalLoads: 98,  onTime: 97, joinedDate: "2023-01-15" },
-  { id: "D-003", name: "Tariq Al-Rashid", phone: "+1 832 555 4411",  email: "t.alrashid@oceanflex.test", licenseNo: "TX-DL-774512", licenseExpiry: "2025-12-01", passportNo: "AE-882001233", passportExpiry: "2026-06-30", vehicle: "V-005 · TX-6612", currentLoad: "SHP-0038", status: "resting",   totalLoads: 210, onTime: 91, joinedDate: "2021-07-22" },
-  { id: "D-004", name: "Jin Soo Park",    phone: "+82 2 555 3310",   email: "j.park@oceanflex.test",     licenseNo: "KR-DL-119203", licenseExpiry: "2026-05-18", passportNo: "KR-201923881", passportExpiry: "2028-01-20", vehicle: "V-002 · CA-9034", currentLoad: "SHP-0039", status: "driving",   totalLoads: 167, onTime: 89, joinedDate: "2022-09-01" },
-  { id: "D-005", name: "Amara Diallo",    phone: "+33 1 555 8876",   email: "a.diallo@oceanflex.test",   licenseNo: "FR-DL-882211", licenseExpiry: "2027-04-10", passportNo: "SN-441002992", passportExpiry: "2029-08-12", vehicle: null,              currentLoad: null,       status: "available", totalLoads: 55,  onTime: 98, joinedDate: "2024-02-18" },
-];
+const INITIAL: Driver[] = [];
 
 const STATUS_META: Record<DriverStatus, { label: string; tone: "green" | "blue" | "amber" | "slate" | "red"; dot: string }> = {
   available: { label: "Available", tone: "green", dot: "bg-emerald-500" },
@@ -42,11 +36,20 @@ const STATUS_META: Record<DriverStatus, { label: string; tone: "green" | "blue" 
 };
 
 export function Drivers() {
+  return (
+    <section role="status" className="rounded-xl border border-slate-200 bg-white p-8">
+      <h1 className="text-lg font-semibold">Drivers</h1>
+      <p className="mt-2 text-slate-600">This feature is not yet connected to live records. Data entry is unavailable until activation is complete.</p>
+    </section>
+  );
+}
+
+export function DriversView() {
   const { t } = useI18n();
   const [drivers, setDrivers]   = useState<Driver[]>(INITIAL);
   const [search, setSearch]     = useState("");
   const [statusFilter, setStatusFilter] = useState<DriverStatus | "all">("all");
-  const [selected, setSelected] = useState<Driver | null>(INITIAL[0]);
+  const [selected, setSelected] = useState<Driver | null>(null);
   const [editing, setEditing]   = useState(false);
   const [adding, setAdding]     = useState(false);
   const [form, setForm]         = useState<Partial<Driver>>({});

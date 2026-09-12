@@ -8,10 +8,10 @@ export interface PortalLink {
 }
 
 const DEFAULTS: Record<PortalId, string> = {
-  shipper: "http://localhost:5173",
-  carrier: "http://localhost:5174",
-  broker: "http://localhost:5175",
-  admin: "http://localhost:5176",
+  shipper: import.meta.env.DEV ? "http://localhost:5173" : "https://epl-move-web-shipper.vercel.app",
+  carrier: import.meta.env.DEV ? "http://localhost:5174" : "https://epl-move-web-carrier.vercel.app",
+  broker: import.meta.env.DEV ? "http://localhost:5175" : "https://epl-move-web-broker.vercel.app",
+  admin: import.meta.env.DEV ? "http://localhost:5176" : "https://epl-move-web-app-web-admin.vercel.app",
 };
 
 function url(id: PortalId, envKey: keyof ImportMetaEnv): string {

@@ -23,17 +23,10 @@ interface DispatchRow {
   customer: string;
 }
 
-const MOCK_LOADS: DispatchRow[] = [
-  { ref: "SHP-0041", origin: "Shanghai, CN",    dest: "Los Angeles, US", pickup: "Jun 10", delivery: "Jun 28", driver: "Marcus Webb",      vehicle: "V-001 · TX-4821", status: "in_transit",       delayed: false, cargo: "Electronics 22t",    customer: "Acme Logistics" },
-  { ref: "SHP-0039", origin: "Rotterdam, NL",   dest: "Hamburg, DE",     pickup: "Jun 11", delivery: "Jun 14", driver: "Jin Soo Park",      vehicle: "V-002 · CA-9034", status: "in_transit",       delayed: true,  cargo: "Auto Parts 18t",     customer: "AutoFleet GmbH"  },
-  { ref: "SHP-0038", origin: "Houston, US",     dest: "Miami, US",       pickup: "Jun 14", delivery: "Jun 15", driver: "Tariq Al-Rashid",   vehicle: "V-005 · TX-6612", status: "pickup_scheduled", delayed: false, cargo: "Chemicals 8t",       customer: "ChemCorp USA"    },
-  { ref: "SHP-0036", origin: "Dubai, AE",       dest: "Singapore, SG",   pickup: "Jun 16", delivery: "Jun 20", driver: null,                vehicle: null,              status: "pending_assign",   delayed: false, cargo: "Consumer Goods 14t", customer: "Gulf Traders"    },
-  { ref: "SHP-0034", origin: "Frankfurt, DE",   dest: "Warsaw, PL",      pickup: "Jun 12", delivery: "Jun 13", driver: "Elena Sorokina",    vehicle: "V-004 · NY-7753", status: "at_border",        delayed: false, cargo: "Machinery 30t",      customer: "PL Imports"      },
-  { ref: "SHP-0031", origin: "Osaka, JP",       dest: "Sydney, AU",      pickup: "Jun 05", delivery: "Jun 12", driver: "Amara Diallo",      vehicle: "V-001 · TX-4821", status: "delivered",        delayed: false, cargo: "Raw Materials 25t",  customer: "AusTrade"        },
-];
+const MOCK_LOADS: DispatchRow[] = [];
 
-const DRIVERS = ["Marcus Webb", "Elena Sorokina", "Tariq Al-Rashid", "Jin Soo Park", "Amara Diallo"];
-const VEHICLES = ["V-001 · TX-4821 (Ocean)", "V-002 · CA-9034 (Truck)", "V-004 · NY-7753 (Rail)", "V-005 · TX-6612 (Air)"];
+const DRIVERS: string[] = [];
+const VEHICLES: string[] = [];
 
 const STATUS_META: Record<DispatchStatus, { label: string; tone: "slate" | "amber" | "blue" | "navy" | "green" }> = {
   pending_assign:   { label: "Pending Assign",   tone: "slate"  },
@@ -44,6 +37,15 @@ const STATUS_META: Record<DispatchStatus, { label: string; tone: "slate" | "ambe
 };
 
 export function Dispatch() {
+  return (
+    <section role="status" className="rounded-xl border border-slate-200 bg-white p-8">
+      <h1 className="text-lg font-semibold">Dispatch</h1>
+      <p className="mt-2 text-slate-600">This feature is not yet connected to live records. Data entry is unavailable until activation is complete.</p>
+    </section>
+  );
+}
+
+export function DispatchView() {
   const { t } = useI18n();
   const statusLabel = (status: DispatchStatus) => t(`status.${status === "pending_assign" ? "pendingDriver" : status === "pickup_scheduled" ? "pickupScheduled" : status === "in_transit" ? "inTransit" : status === "at_border" ? "atBorder" : status}`);
   const [loads, setLoads]       = useState<DispatchRow[]>(MOCK_LOADS);

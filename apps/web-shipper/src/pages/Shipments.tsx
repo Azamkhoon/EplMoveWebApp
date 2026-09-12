@@ -58,10 +58,10 @@ export function Shipments() {
     api
       .listShipments()
       .then((list) => {
-        // Empty live list → keep demo data available for local dev without backend seed.
-        setLiveShipments(list.length > 0 ? list.map((shipment) => toViewShipment(shipment)) : null);
+        // Preserve empty accounts.
+        setLiveShipments(list.map((shipment) => toViewShipment(shipment)));
       })
-      .catch(() => setLiveShipments(null))
+      .catch(() => { setLiveShipments([]); setError("Shipments could not be loaded. Please try again."); })
       .finally(() => setLoading(false));
   }, [t]);
 

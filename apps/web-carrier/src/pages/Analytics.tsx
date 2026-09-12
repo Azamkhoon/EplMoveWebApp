@@ -6,49 +6,39 @@ import { useI18n } from "@/i18n/LanguageContext";
 
 // All data is mock — a real implementation would query a time-series analytics service.
 
-const MONTHLY_REVENUE = [
-  { month: "Jan", revenue: 48200, loads: 6  },
-  { month: "Feb", revenue: 52400, loads: 7  },
-  { month: "Mar", revenue: 61800, loads: 8  },
-  { month: "Apr", revenue: 58000, loads: 7  },
-  { month: "May", revenue: 74200, loads: 10 },
-  { month: "Jun", revenue: 31700, loads: 4  }, // partial
-];
+const MONTHLY_REVENUE: { month: string; revenue: number; loads: number; }[] = [];
 
-const ROUTE_PERF = [
-  { route: "Shanghai → LA",      loads: 12, revenue: 87200, onTime: 92, profit: 68 },
-  { route: "Rotterdam → Hamburg",loads: 28, revenue: 42000, onTime: 88, profit: 71 },
-  { route: "Dubai → Singapore",  loads: 8,  revenue: 61600, onTime: 95, profit: 64 },
-  { route: "Houston → Miami",    loads: 34, revenue: 28900, onTime: 97, profit: 58 },
-  { route: "Osaka → Sydney",     loads: 6,  revenue: 55200, onTime: 100, profit: 73 },
-];
+const ROUTE_PERF: { route: string; loads: number; revenue: number; onTime: number; profit: number; }[] = [];
 
-const DRIVER_PERF = [
-  { name: "Marcus Webb",     loads: 142, onTime: 94, revenue: 312000, rating: 4.8 },
-  { name: "Tariq Al-Rashid", loads: 210, onTime: 91, revenue: 284000, rating: 4.6 },
-  { name: "Jin Soo Park",    loads: 167, onTime: 89, revenue: 267000, rating: 4.5 },
-  { name: "Elena Sorokina",  loads: 98,  onTime: 97, revenue: 188000, rating: 4.9 },
-  { name: "Amara Diallo",    loads: 55,  onTime: 98, revenue: 102000, rating: 5.0 },
-];
+const DRIVER_PERF: { name: string; loads: number; onTime: number; revenue: number; rating: number; }[] = [];
 
-const maxRev = Math.max(...MONTHLY_REVENUE.map((m) => m.revenue));
-const maxLoads = Math.max(...MONTHLY_REVENUE.map((m) => m.loads));
+const maxRev = Math.max(1, ...MONTHLY_REVENUE.map((m) => m.revenue));
+const maxLoads = Math.max(1, ...MONTHLY_REVENUE.map((m) => m.loads));
 
 export function Analytics() {
+  return (
+    <section role="status" className="rounded-xl border border-slate-200 bg-white p-8">
+      <h1 className="text-lg font-semibold">Analytics</h1>
+      <p className="mt-2 text-slate-600">This feature is not yet connected to live records. Data entry is unavailable until activation is complete.</p>
+    </section>
+  );
+}
+
+export function AnalyticsView() {
   const { t } = useI18n();
   const totalRevenue  = MONTHLY_REVENUE.reduce((s, m) => s + m.revenue, 0);
   const totalLoads    = MONTHLY_REVENUE.reduce((s, m) => s + m.loads, 0);
-  const avgOnTime     = Math.round(ROUTE_PERF.reduce((s, r) => s + r.onTime, 0) / ROUTE_PERF.length);
-  const winRate       = 34; // % from bid data
+  const avgOnTime     = Math.round(ROUTE_PERF.reduce((s, r) => s + r.onTime, 0) / Math.max(1, ROUTE_PERF.length));
+  const winRate       = 0; // % from bid data
 
   return (
     <div className="space-y-6">
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <KpiCard label={t("analytics.ytdRevenue")} value={formatCurrency(totalRevenue)} trend="+18%" up icon={<TrendingUp size={18} />} color="emerald" />
-        <KpiCard label={t("analytics.loadsDelivered")} value={String(totalLoads)} trend="+12%" up icon={<Truck size={18} />} color="blue" />
-        <KpiCard label={t("analytics.onTimeRate")} value={`${avgOnTime}%`} trend="+3%" up icon={<Clock size={18} />} color="brand" />
-        <KpiCard label={t("analytics.bidWinRate")} value={`${winRate}%`} trend="-4%" up={false} icon={<Gavel size={18} />} color="amber" />
+        <KpiCard label={t("analytics.ytdRevenue")} value={formatCurrency(totalRevenue)} trend="—" up icon={<TrendingUp size={18} />} color="emerald" />
+        <KpiCard label={t("analytics.loadsDelivered")} value={String(totalLoads)} trend="—" up icon={<Truck size={18} />} color="blue" />
+        <KpiCard label={t("analytics.onTimeRate")} value={`${avgOnTime}%`} trend="—" up icon={<Clock size={18} />} color="brand" />
+        <KpiCard label={t("analytics.bidWinRate")} value={`${winRate}%`} trend="—" up={false} icon={<Gavel size={18} />} color="amber" />
       </div>
 
       {/* Revenue bar chart + Loads */}

@@ -25,28 +25,11 @@ import { formatCurrency, relativeTime } from "@/lib/utils";
 import { useI18n } from "@/i18n/LanguageContext";
 
 // ── Mock fleet/dispatch data ──────────────────────────────────────────────────
-const MOCK_VEHICLES = [
-  { id: "V-001", plate: "TX-4821", type: "Ocean Container", status: "active" as const },
-  { id: "V-002", plate: "CA-9034", type: "Truck 40t", status: "active" as const },
-  { id: "V-003", plate: "FL-2210", type: "Reefer", status: "maintenance" as const },
-  { id: "V-004", plate: "NY-7753", type: "Rail Wagon", status: "idle" as const },
-  { id: "V-005", plate: "TX-6612", type: "Air Cargo", status: "active" as const },
-];
+const MOCK_VEHICLES: ({ id: string; plate: string; type: string; status: "active"; } | { id: string; plate: string; type: string; status: "maintenance"; } | { id: string; plate: string; type: string; status: "idle"; })[] = [];
 
-const MOCK_DRIVERS = [
-  { id: "D-001", name: "Marcus Webb", status: "driving" as const, route: "Shanghai → LA" },
-  { id: "D-002", name: "Elena Sorokina", status: "available" as const, route: null },
-  { id: "D-003", name: "Tariq Al-Rashid", status: "resting" as const, route: "Houston → Miami" },
-  { id: "D-004", name: "Jin Soo Park", status: "driving" as const, route: "Rotterdam → Hamburg" },
-  { id: "D-005", name: "Amara Diallo", status: "available" as const, route: null },
-];
+const MOCK_DRIVERS: ({ id: string; name: string; status: "driving"; route: string; } | { id: string; name: string; status: "available"; route: null; } | { id: string; name: string; status: "resting"; route: string; })[] = [];
 
-const MOCK_DISPATCH = [
-  { ref: "SHP-0041", driver: "Marcus Webb", origin: "Shanghai", dest: "Los Angeles", eta: "Jun 18", status: "in_transit" as const, delayed: false },
-  { ref: "SHP-0039", driver: "Jin Soo Park", origin: "Rotterdam", dest: "Hamburg", eta: "Jun 14", status: "in_transit" as const, delayed: true },
-  { ref: "SHP-0038", driver: "Tariq Al-Rashid", origin: "Houston", dest: "Miami", eta: "Jun 15", status: "pickup_scheduled" as const, delayed: false },
-  { ref: "SHP-0036", driver: "—", origin: "Dubai", dest: "Singapore", eta: "Jun 20", status: "pending_assign" as const, delayed: false },
-];
+const MOCK_DISPATCH: ({ ref: string; driver: string; origin: string; dest: string; eta: string; status: "in_transit"; delayed: boolean; } | { ref: string; driver: string; origin: string; dest: string; eta: string; status: "pickup_scheduled"; delayed: boolean; } | { ref: string; driver: string; origin: string; dest: string; eta: string; status: "pending_assign"; delayed: boolean; })[] = [];
 
 const STATUS_CHIP: Record<string, { label: string; tone: "blue" | "amber" | "green" | "red" | "slate" }> = {
   in_transit:        { label: "In Transit",        tone: "blue"  },
@@ -83,7 +66,7 @@ export function Dashboard() {
   const winRate  = decided.length ? Math.round((won.length / decided.length) * 100) : 0;
   const revenue  = won.reduce((s, b) => s + b.price.amount, 0);
   const activeV  = MOCK_VEHICLES.filter((v) => v.status === "active").length;
-  const utilPct  = Math.round((activeV / MOCK_VEHICLES.length) * 100);
+  const utilPct  = Math.round((activeV / Math.max(1, MOCK_VEHICLES.length)) * 100);
   const availD   = MOCK_DRIVERS.filter((d) => d.status === "available").length;
   const delayed  = MOCK_DISPATCH.filter((d) => d.delayed).length;
 

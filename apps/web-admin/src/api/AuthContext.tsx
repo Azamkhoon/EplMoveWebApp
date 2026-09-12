@@ -1,8 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, LIVE, restoreToken } from "./client";
 
-const DEMO_EMAIL    = "admin@epl-move.internal";
-const DEMO_PASSWORD = "admin123";
 const MOCK_KEY      = "epl-admin-mock-authed";
 
 interface AuthState {
@@ -18,7 +16,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (sessionStorage.getItem(MOCK_KEY)) { setAuthed(true); setLoading(false); return; }
+    sessionStorage.removeItem(MOCK_KEY);
     if (!api) { setLoading(false); return; }
     restoreToken();
     api.refresh()
@@ -28,12 +26,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    // Demo shortcut — works even when no backend platform_admin user exists
-    if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
-      sessionStorage.setItem(MOCK_KEY, "1");
-      setAuthed(true);
-      return;
-    }
     if (!api) throw new Error("No API");
     await api.login({ email, password });
     setAuthed(true);

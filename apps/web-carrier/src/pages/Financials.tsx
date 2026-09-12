@@ -21,14 +21,7 @@ interface LocalInvoice {
   paidAt: string | null;
 }
 
-const MOCK: LocalInvoice[] = [
-  { id: "inv-001", reference: "INV-2026-0021", amount: 7768,  currency: "USD", status: "paid",    dueDate: "2026-06-20", issuedAt: "2026-06-12T07:57:20Z", paidAt: "2026-06-13T10:00:00Z" },
-  { id: "inv-002", reference: "INV-2026-0018", amount: 9240,  currency: "USD", status: "pending", dueDate: "2026-06-25", issuedAt: "2026-06-10T09:12:00Z", paidAt: null                   },
-  { id: "inv-003", reference: "INV-2026-0015", amount: 11500, currency: "USD", status: "pending", dueDate: "2026-06-22", issuedAt: "2026-06-08T14:35:00Z", paidAt: null                   },
-  { id: "inv-004", reference: "INV-2026-0012", amount: 8200,  currency: "USD", status: "paid",    dueDate: "2026-06-15", issuedAt: "2026-06-03T11:00:00Z", paidAt: "2026-06-10T09:00:00Z" },
-  { id: "inv-005", reference: "INV-2026-0009", amount: 14300, currency: "USD", status: "paid",    dueDate: "2026-05-28", issuedAt: "2026-05-18T08:20:00Z", paidAt: "2026-05-24T11:00:00Z" },
-  { id: "inv-006", reference: "INV-2026-0007", amount: 6800,  currency: "USD", status: "overdue", dueDate: "2026-06-10", issuedAt: "2026-06-01T10:00:00Z", paidAt: null                   },
-];
+const MOCK: LocalInvoice[] = [];
 
 const STATUS_META: Record<InvStatus, { label: string; tone: "green" | "amber" | "red" | "slate" }> = {
   paid:    { label: "Paid",    tone: "green" },

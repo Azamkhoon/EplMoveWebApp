@@ -4,32 +4,34 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { TENANTS, INVOICES } from "@/data/mock";
 import { useI18n } from "@/i18n/LanguageContext";
 
-const MONTHLY = [
-  { month: "Jan", tenants: 2,  shipments: 8,  revenue: 28000,  mrr: 2100  },
-  { month: "Feb", tenants: 3,  shipments: 14, revenue: 54000,  mrr: 3800  },
-  { month: "Mar", tenants: 2,  shipments: 19, revenue: 78000,  mrr: 5200  },
-  { month: "Apr", tenants: 2,  shipments: 22, revenue: 91000,  mrr: 6100  },
-  { month: "May", tenants: 2,  shipments: 28, revenue: 118000, mrr: 7800  },
-  { month: "Jun", tenants: 1,  shipments: 21, revenue: 97000,  mrr: 9200  },
-];
+const MONTHLY: { month: string; tenants: number; shipments: number; revenue: number; mrr: number; }[] = [];
 
 const totalTenants     = TENANTS.length;
 const activeTenants    = TENANTS.filter((t) => t.status === "active").length;
 const totalShipments   = TENANTS.reduce((s, t) => s + t.shipmentCount, 0);
 const totalRevenue     = INVOICES.reduce((s, i) => s + i.amount, 0);
-const avgRevenuePerTenant = Math.round(totalRevenue / totalTenants);
+const avgRevenuePerTenant = Math.round(totalRevenue / Math.max(1, totalTenants));
 
-const maxRev = Math.max(...MONTHLY.map((m) => m.revenue));
-const maxShip = Math.max(...MONTHLY.map((m) => m.shipments));
+const maxRev = Math.max(1, ...MONTHLY.map((m) => m.revenue));
+const maxShip = Math.max(1, ...MONTHLY.map((m) => m.shipments));
 
 export function Analytics() {
+  return (
+    <section role="status" className="rounded-xl border border-slate-200 bg-white p-8">
+      <h1 className="text-lg font-semibold">Analytics</h1>
+      <p className="mt-2 text-slate-600">This feature is not yet connected to live records. Data entry is unavailable until activation is complete.</p>
+    </section>
+  );
+}
+
+export function AnalyticsView() {
   const { t: tr } = useI18n();
   const tenantsByKind = {
     shipper: TENANTS.filter((t) => t.kind === "shipper").length,
     carrier: TENANTS.filter((t) => t.kind === "carrier").length,
   };
   const topTenants = [...TENANTS].sort((a, b) => b.invoiceTotal - a.invoiceTotal).slice(0, 5);
-  const maxInvoice = Math.max(...topTenants.map((t) => t.invoiceTotal));
+  const maxInvoice = Math.max(1, ...topTenants.map((t) => t.invoiceTotal));
 
   return (
     <div className="space-y-6">
@@ -55,8 +57,8 @@ export function Analytics() {
             ))}
           </div>
           <div className="mt-3 flex justify-between text-xs text-slate-400">
-            <span>{formatCurrency(MONTHLY[0]!.revenue)} Jan</span>
-            <span className="font-semibold text-brand-600">{formatCurrency(MONTHLY[5]!.revenue)} Jun</span>
+            <span>{formatCurrency((MONTHLY[0]?.revenue ?? 0))} Jan</span>
+            <span className="font-semibold text-brand-600">{formatCurrency((MONTHLY[5]?.revenue ?? 0))} Jun</span>
           </div>
         </div>
 
@@ -73,8 +75,8 @@ export function Analytics() {
             ))}
           </div>
           <div className="mt-3 flex justify-between text-xs text-slate-400">
-            <span>{MONTHLY[0]!.shipments} Jan</span>
-            <span className="font-semibold text-violet-600">{MONTHLY[4]!.shipments} May (peak)</span>
+            <span>{(MONTHLY[0]?.shipments ?? 0)} Jan</span>
+            <span className="font-semibold text-violet-600">{(MONTHLY[4]?.shipments ?? 0)} May (peak)</span>
           </div>
         </div>
       </div>
@@ -85,8 +87,8 @@ export function Analytics() {
           <h2 className="mb-4 font-semibold text-slate-800">{tr("analytics.tenantMix")}</h2>
           <div className="space-y-3">
             {[
-              { label: "Shippers", count: tenantsByKind.shipper, color: "bg-blue-500",   pct: Math.round(tenantsByKind.shipper / totalTenants * 100) },
-              { label: "Carriers", count: tenantsByKind.carrier, color: "bg-teal-500",   pct: Math.round(tenantsByKind.carrier / totalTenants * 100) },
+              { label: "Shippers", count: tenantsByKind.shipper, color: "bg-blue-500",   pct: Math.round(tenantsByKind.shipper / Math.max(1, totalTenants) * 100) },
+              { label: "Carriers", count: tenantsByKind.carrier, color: "bg-teal-500",   pct: Math.round(tenantsByKind.carrier / Math.max(1, totalTenants) * 100) },
             ].map((row) => (
               <div key={row.label}>
                 <div className="mb-1 flex justify-between text-xs">

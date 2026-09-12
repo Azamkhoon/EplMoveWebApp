@@ -4,23 +4,25 @@ import { cn, formatCurrency, formatDateTime } from "@/lib/utils";
 import { TENANTS, SHIPMENTS, INVOICES, SERVICE_HEALTH, AUDIT_LOG } from "@/data/mock";
 import { useI18n } from "@/i18n/LanguageContext";
 
-const MONTHLY = [
-  { month: "Jan", tenants: 2,  shipments: 8,  revenue: 28000  },
-  { month: "Feb", tenants: 3,  shipments: 14, revenue: 54000  },
-  { month: "Mar", tenants: 2,  shipments: 19, revenue: 78000  },
-  { month: "Apr", tenants: 2,  shipments: 22, revenue: 91000  },
-  { month: "May", tenants: 2,  shipments: 28, revenue: 118000 },
-  { month: "Jun", tenants: 1,  shipments: 21, revenue: 97000  },
-];
+const MONTHLY: { month: string; tenants: number; shipments: number; revenue: number; }[] = [];
 
 export function Overview() {
+  return (
+    <section role="status" className="rounded-xl border border-slate-200 bg-white p-8">
+      <h1 className="text-lg font-semibold">Overview</h1>
+      <p className="mt-2 text-slate-600">This feature is not yet connected to live records. Data entry is unavailable until activation is complete.</p>
+    </section>
+  );
+}
+
+export function OverviewView() {
   const { t } = useI18n();
   const activeTenants  = TENANTS.filter((t) => t.status === "active").length;
   const totalRevenue   = INVOICES.filter((i) => i.status === "paid").reduce((s, i) => s + i.amount, 0);
   const activeShipments= SHIPMENTS.filter((s) => s.status === "in_transit" || s.status === "at_customs").length;
   const degraded       = SERVICE_HEALTH.filter((s) => s.status !== "up").length;
 
-  const maxRev = Math.max(...MONTHLY.map((m) => m.revenue));
+  const maxRev = Math.max(1, ...MONTHLY.map((m) => m.revenue));
 
   return (
     <div className="space-y-6">
@@ -30,7 +32,7 @@ export function Overview() {
         <KpiCard icon={Package} cls="bg-violet-50 text-violet-600" label={t("overview.shipments")} value={String(activeShipments)} sub={t("overview.inTransit")} />
         <KpiCard icon={DollarSign} cls="bg-emerald-50 text-emerald-600" label={t("overview.revenue")} value={formatCurrency(totalRevenue)} sub={t("overview.thisMonth")} />
         <KpiCard icon={Activity}    cls={degraded > 0 ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600"}
-          label={t("overview.health")} value={degraded > 0 ? `${degraded} ${t("status.degraded")}` : t("overview.allOperational")}
+          label={t("overview.health")} value={SERVICE_HEALTH.length === 0 ? "Unavailable" : degraded > 0 ? `${degraded} ${t("status.degraded")}` : t("overview.allOperational")}
           sub={`12 ${t("overview.servicesOnline")}`} urgent={degraded > 0} />
       </div>
 

@@ -32,9 +32,9 @@ export function Tracking() {
     api
       .listShipments()
       .then((list) => {
-        setLiveShipments(list.length > 0 ? list.map((shipment) => toViewShipment(shipment)) : null);
+        setLiveShipments(list.map((shipment) => toViewShipment(shipment)));
       })
-      .catch(() => setLiveShipments(null))
+      .catch(() => setLiveShipments([]))
       .finally(() => setLoading(false));
   }, []);
 

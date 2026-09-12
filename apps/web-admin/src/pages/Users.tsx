@@ -15,6 +15,15 @@ const ROLE_TONE: Record<string, "blue" | "teal" | "violet" | "slate"> = {
 };
 
 export function Users() {
+  return (
+    <section role="status" className="rounded-xl border border-slate-200 bg-white p-8">
+      <h1 className="text-lg font-semibold">Users</h1>
+      <p className="mt-2 text-slate-600">This feature is not yet connected to live records. Data entry is unavailable until activation is complete.</p>
+    </section>
+  );
+}
+
+export function UsersView() {
   const { t } = useI18n();
   const [search, setSearch]     = useState("");
   const [tenantFilter, setTenantFilter] = useState("all");

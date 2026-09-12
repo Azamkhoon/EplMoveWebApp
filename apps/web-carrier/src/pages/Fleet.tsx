@@ -26,14 +26,7 @@ interface Vehicle {
   assignedTo: string | null;
 }
 
-const INITIAL: Vehicle[] = [
-  { id: "V-001", plate: "TX-4821", vin: "1HGCM82633A123456", type: "Ocean Container", capacityT: 28, capacityM3: 67,  tempRange: null,        gpsId: "GPS-8821", insurance: "AXA-2024-881",  status: "active",      nextService: "Aug 15", assignedTo: "Marcus Webb"    },
-  { id: "V-002", plate: "CA-9034", vin: "2T3ZFREV0JW112233", type: "Truck",           capacityT: 40, capacityM3: 90,  tempRange: null,        gpsId: "GPS-9034", insurance: "Zurich-2024-44", status: "active",      nextService: "Jul 01", assignedTo: "Jin Soo Park"   },
-  { id: "V-003", plate: "FL-2210", vin: "3VWFE21C04M000099", type: "Reefer",          capacityT: 22, capacityM3: 58,  tempRange: "-25°C / +5°C", gpsId: "GPS-2210", insurance: "AXA-2024-992",  status: "maintenance", nextService: "Jun 16", assignedTo: null             },
-  { id: "V-004", plate: "NY-7753", vin: "4S3BMHB68B3286050", type: "Rail Wagon",      capacityT: 60, capacityM3: 120, tempRange: null,        gpsId: "GPS-7753", insurance: "Lloyd's-881",   status: "idle",        nextService: "Sep 10", assignedTo: "Elena Sorokina" },
-  { id: "V-005", plate: "TX-6612", vin: "5YJSA1CN5DFP12345", type: "Air Cargo",       capacityT: 12, capacityM3: 35,  tempRange: null,        gpsId: "GPS-6612", insurance: "Allianz-2024",  status: "active",      nextService: "Jul 22", assignedTo: "Tariq Al-Rashid"},
-  { id: "V-006", plate: "LA-3391", vin: "6G1MK5239G8109999", type: "Courier Van",     capacityT: 1,  capacityM3: 8,   tempRange: null,        gpsId: "GPS-3391", insurance: "AXA-2024-110",  status: "idle",        nextService: "Oct 01", assignedTo: null             },
-];
+const INITIAL: Vehicle[] = [];
 
 const STATUS_META: Record<VehicleStatus, { label: string; tone: "green" | "slate" | "amber" | "red"; dot: string }> = {
   active:          { label: "Active",          tone: "green", dot: "bg-emerald-500" },
@@ -45,6 +38,15 @@ const STATUS_META: Record<VehicleStatus, { label: string; tone: "green" | "slate
 const VEHICLE_TYPES: VehicleType[] = ["Truck", "Trailer", "Reefer", "Rail Wagon", "Air Cargo", "Ocean Container", "Courier Van"];
 
 export function Fleet() {
+  return (
+    <section role="status" className="rounded-xl border border-slate-200 bg-white p-8">
+      <h1 className="text-lg font-semibold">Fleet</h1>
+      <p className="mt-2 text-slate-600">This feature is not yet connected to live records. Data entry is unavailable until activation is complete.</p>
+    </section>
+  );
+}
+
+export function FleetView() {
   const { t } = useI18n();
   const [vehicles, setVehicles] = useState<Vehicle[]>(INITIAL);
   const [search, setSearch]     = useState("");

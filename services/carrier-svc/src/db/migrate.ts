@@ -28,7 +28,7 @@ async function migrate() {
   });
   await pool.query(readFileSync(join(__dirname, "migrations.sql"), "utf8"));
 
-  for (const c of SEED_CARRIERS) {
+  for (const c of (process.env.SEED_DEMO_DATA === "true" && process.env.NODE_ENV !== "production" ? SEED_CARRIERS : [])) {
     const { rowCount } = await pool.query("SELECT 1 FROM carrier.carriers WHERE name = $1", [c.name]);
     if (rowCount) continue;
     await pool.query(
@@ -38,7 +38,7 @@ async function migrate() {
     );
   }
 
-  logger.info("carrier-svc migrations + seed applied");
+  logger.info("carrier-svc migrations applied");
   await pool.end();
 }
 

@@ -35,7 +35,7 @@ for s in tenant-svc auth-svc load-svc carrier-svc quote-svc shipment-svc trackin
   pnpm --filter @epl/$s build && pnpm --filter @epl/$s migrate
 done
 ```
-(carrier-svc seeds 8 demo carriers; tenant-svc seeds roles/permissions.)
+(tenant-svc seeds system roles/permissions. Carrier demo seeding is off by default; explicitly set SEED_DEMO_DATA=true for a non-production migration when needed.)
 
 ## 4. Start the services (separate terminals, or `pnpm dev:backend`)
 ```bash

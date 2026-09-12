@@ -3,128 +3,11 @@ import type { Declaration, Client, HsCode, BrokerDocument } from "@/types";
 // ─── Declarations ────────────────────────────────────────────────────────────
 // All declarations now use Uzbekistan as the destination (imports) or origin (exports)
 // Currencies: UZS (soum) for local, USD/EUR for international invoices
-export const DECLARATIONS: Declaration[] = [
-  {
-    id: "d-001", reference: "DEC-2026-0041", type: "import", status: "under_review",
-    clientId: "c-001", clientName: "Orion Tekstil MChJ",
-    shipmentRef: "SHP-0041", origin: "CN", destination: "UZ",
-    hsCode: "5208.21", description: "Cotton fabric, plain weave, bleached",
-    totalValue: 48000, currency: "USD",
-    dutyAmount: 4800, vatAmount: 6336,          // 10% duty + 12% VAT on (CIF+duty)
-    declarant: "Dilnoza Yusupova",
-    createdAt: "2026-06-10T09:00:00Z", updatedAt: "2026-06-12T14:00:00Z", deadline: "2026-06-15",
-  },
-  {
-    id: "d-002", reference: "DEC-2026-0040", type: "export", status: "approved",
-    clientId: "c-002", clientName: "Fergana Kimyo AJ",
-    shipmentRef: "SHP-0039", origin: "UZ", destination: "TR",
-    hsCode: "5201.00", description: "Cotton, not carded or combed",
-    totalValue: 210000, currency: "USD",
-    dutyAmount: 0, vatAmount: 0,               // 0% export duty (raw cotton historically 100%, but this lot has phytosanitary cert)
-    declarant: "Jasur Toshmatov",
-    createdAt: "2026-06-09T11:00:00Z", updatedAt: "2026-06-11T16:00:00Z", deadline: null,
-  },
-  {
-    id: "d-003", reference: "DEC-2026-0039", type: "import", status: "docs_requested",
-    clientId: "c-003", clientName: "ToshTrans LLC",
-    shipmentRef: "SHP-0038", origin: "DE", destination: "UZ",
-    hsCode: "8704.21", description: "Motor vehicles for goods transport, diesel, ≤5t GVW",
-    totalValue: 95000, currency: "EUR",
-    dutyAmount: 9500, vatAmount: 12540,        // 10% duty + 12% VAT
-    declarant: "Dilnoza Yusupova",
-    createdAt: "2026-06-08T08:00:00Z", updatedAt: "2026-06-12T10:00:00Z", deadline: "2026-06-14",
-  },
-  {
-    id: "d-004", reference: "DEC-2026-0038", type: "import", status: "submitted",
-    clientId: "c-004", clientName: "Samarqand Vino ZAJ",
-    shipmentRef: "SHP-0036", origin: "FR", destination: "UZ",
-    hsCode: "2204.21", description: "Wine of fresh grapes, in containers ≤2L",
-    totalValue: 18000, currency: "EUR",
-    dutyAmount: 3600, vatAmount: 2592,         // 20% duty + excise + 12% VAT
-    declarant: "Jasur Toshmatov",
-    createdAt: "2026-06-07T14:00:00Z", updatedAt: "2026-06-10T09:00:00Z", deadline: "2026-06-16",
-  },
-  {
-    id: "d-005", reference: "DEC-2026-0037", type: "import", status: "draft",
-    clientId: "c-001", clientName: "Orion Tekstil MChJ",
-    shipmentRef: "SHP-0035", origin: "KR", destination: "UZ",
-    hsCode: "8444.00", description: "Machines for extruding, drawing, texturing man-made textile",
-    totalValue: 340000, currency: "USD",
-    dutyAmount: 0, vatAmount: 0,               // 0% duty — industrial equipment
-    declarant: "Dilnoza Yusupova",
-    createdAt: "2026-06-06T16:00:00Z", updatedAt: "2026-06-06T16:00:00Z", deadline: "2026-06-18",
-  },
-  {
-    id: "d-006", reference: "DEC-2026-0036", type: "export", status: "released",
-    clientId: "c-005", clientName: "Navruz Meva Sabzavot",
-    shipmentRef: "SHP-0034", origin: "UZ", destination: "RU",
-    hsCode: "0808.10", description: "Apples, fresh",
-    totalValue: 32000, currency: "USD",
-    dutyAmount: 0, vatAmount: 0,               // CIS FTA — 0% export duty, 0% RU import duty
-    declarant: "Aziza Karimova",
-    createdAt: "2026-06-04T10:00:00Z", updatedAt: "2026-06-08T11:00:00Z", deadline: null,
-  },
-  {
-    id: "d-007", reference: "DEC-2026-0035", type: "import", status: "rejected",
-    clientId: "c-003", clientName: "ToshTrans LLC",
-    shipmentRef: "SHP-0033", origin: "RU", destination: "UZ",
-    hsCode: "2710.12", description: "Light oils and preparations (petrol/gasoline)",
-    totalValue: 87000, currency: "USD",
-    dutyAmount: 8700, vatAmount: 11484,        // 10% + 12% VAT — missing fuel excise docs
-    declarant: "Jasur Toshmatov",
-    createdAt: "2026-06-03T13:00:00Z", updatedAt: "2026-06-05T14:00:00Z", deadline: null,
-  },
-  {
-    id: "d-008", reference: "DEC-2026-0034", type: "import", status: "closed",
-    clientId: "c-002", clientName: "Fergana Kimyo AJ",
-    shipmentRef: "SHP-0031", origin: "CN", destination: "UZ",
-    hsCode: "3105.20", description: "Mineral or chemical fertilisers, NPK",
-    totalValue: 124000, currency: "USD",
-    dutyAmount: 6200, vatAmount: 15624,        // 5% duty + 12% VAT
-    declarant: "Aziza Karimova",
-    createdAt: "2026-05-28T08:00:00Z", updatedAt: "2026-06-01T09:00:00Z", deadline: null,
-  },
-];
+export const DECLARATIONS: Declaration[] = [];
 
 // ─── Clients ──────────────────────────────────────────────────────────────────
 // Real Uzbekistan company formats: MChJ = LLC, AJ = JSC, ZAJ = OJSC
-export const CLIENTS: Client[] = [
-  {
-    id: "c-001", name: "Orion Tekstil MChJ", type: "importer",
-    taxId: "UZ-INN-302845617", country: "UZ",
-    address: "Andijon ko'chasi 14, Toshkent 100000",
-    contactName: "Sardor Mirzayev", contactEmail: "s.mirzayev@oriontekstil.uz", contactPhone: "+998 71 234 5678",
-    eoriNumber: null, authorizedAt: "2024-02-10", declarationCount: 31,
-  },
-  {
-    id: "c-002", name: "Fergana Kimyo AJ", type: "exporter",
-    taxId: "UZ-INN-415723890", country: "UZ",
-    address: "Sanoat ko'chasi 5, Farg'ona 150100",
-    contactName: "Nozima Xoliqova", contactEmail: "n.xoliqova@ferganakimyo.uz", contactPhone: "+998 73 221 4400",
-    eoriNumber: null, authorizedAt: "2023-09-15", declarationCount: 44,
-  },
-  {
-    id: "c-003", name: "ToshTrans LLC", type: "importer",
-    taxId: "UZ-INN-200134762", country: "UZ",
-    address: "Mustaqillik shoh ko'chasi 22, Toshkent 100029",
-    contactName: "Bobur Rahimov", contactEmail: "b.rahimov@toshtrans.uz", contactPhone: "+998 71 556 9900",
-    eoriNumber: null, authorizedAt: "2024-07-01", declarationCount: 19,
-  },
-  {
-    id: "c-004", name: "Samarqand Vino ZAJ", type: "importer",
-    taxId: "UZ-INN-709234501", country: "UZ",
-    address: "Registon ko'chasi 88, Samarqand 140100",
-    contactName: "Akbar Nazarov", contactEmail: "a.nazarov@samvino.uz", contactPhone: "+998 66 233 1122",
-    eoriNumber: null, authorizedAt: "2024-04-20", declarationCount: 9,
-  },
-  {
-    id: "c-005", name: "Navruz Meva Sabzavot", type: "exporter",
-    taxId: "UZ-INN-803712456", country: "UZ",
-    address: "Dehqon bozori ko'chasi 3, Samarqand 140000",
-    contactName: "Gulnora Sobirov", contactEmail: "g.sobirov@navruzmeva.uz", contactPhone: "+998 66 212 8800",
-    eoriNumber: null, authorizedAt: "2023-06-05", declarationCount: 56,
-  },
-];
+export const CLIENTS: Client[] = [];
 
 // ─── HS Codes (Uzbekistan tariff, Presidential Resolution PP-55, Jan 2025) ────
 //
@@ -305,21 +188,7 @@ export const HS_CODES: HsCode[] = [
 ];
 
 // ─── Documents ────────────────────────────────────────────────────────────────
-export const DOCUMENTS: BrokerDocument[] = [
-  { id: "doc-001", name: "Tijorat hisob-fakturasi — DEC-2026-0041.pdf",   type: "commercial_invoice",    declarationId: "d-001", declarationRef: "DEC-2026-0041", clientId: "c-001", size: 248000, uploadedBy: "Dilnoza Yusupova",   uploadedAt: "2026-06-10T10:00:00Z", verified: true  },
-  { id: "doc-002", name: "Yukxat (Packing List) — SHP-0041.pdf",           type: "packing_list",          declarationId: "d-001", declarationRef: "DEC-2026-0041", clientId: "c-001", size: 98000,  uploadedBy: "Dilnoza Yusupova",   uploadedAt: "2026-06-10T10:05:00Z", verified: true  },
-  { id: "doc-003", name: "Konosament — MSC BUSAN V.pdf",                   type: "bill_of_lading",        declarationId: "d-001", declarationRef: "DEC-2026-0041", clientId: "c-001", size: 185000, uploadedBy: "Jasur Toshmatov",    uploadedAt: "2026-06-11T08:00:00Z", verified: false },
-  { id: "doc-004", name: "Kelib chiqish sertifikati — Form A CN.pdf",      type: "certificate_of_origin", declarationId: "d-001", declarationRef: "DEC-2026-0041", clientId: "c-001", size: 312000, uploadedBy: "Aziza Karimova",     uploadedAt: "2026-06-11T09:30:00Z", verified: true  },
-  { id: "doc-005", name: "O'zstandart muvofiqlik sertifikati — 8704.pdf",  type: "customs_license",       declarationId: "d-003", declarationRef: "DEC-2026-0039", clientId: "c-003", size: 420000, uploadedBy: "Jasur Toshmatov",    uploadedAt: "2026-06-09T14:00:00Z", verified: false },
-  { id: "doc-006", name: "Sanitariya xulosasi — vino FR.pdf",              type: "import_permit",         declarationId: "d-004", declarationRef: "DEC-2026-0038", clientId: "c-004", size: 156000, uploadedBy: "Dilnoza Yusupova",   uploadedAt: "2026-06-08T11:00:00Z", verified: false },
-  { id: "doc-007", name: "Fitosanitariya sertifikati — olma UZ.pdf",       type: "export_permit",         declarationId: "d-006", declarationRef: "DEC-2026-0036", clientId: "c-005", size: 280000, uploadedBy: "Aziza Karimova",     uploadedAt: "2026-06-05T15:00:00Z", verified: true  },
-  { id: "doc-008", name: "CMR — ToshTrans SHP-0038.pdf",                   type: "cmr",                   declarationId: "d-003", declarationRef: "DEC-2026-0039", clientId: "c-003", size: 198000, uploadedBy: "Jasur Toshmatov",    uploadedAt: "2026-06-08T17:00:00Z", verified: false },
-];
+export const DOCUMENTS: BrokerDocument[] = [];
 
 // ─── Pending Shipments ────────────────────────────────────────────────────────
-export const SHIPMENTS_PENDING = [
-  { ref: "SHP-0042", origin: "Shanghai, CN",    dest: "Toshkent, UZ",  carrier: "COSCO",           mode: "Rail",  cargo: "Cotton yarn 32t",         incoterms: "CFR", eta: "2026-06-22", client: "Orion Tekstil MChJ",  value: 88000  },
-  { ref: "SHP-0043", origin: "Frankfurt, DE",   dest: "Toshkent, UZ",  carrier: "Lufthansa Cargo", mode: "Air",   cargo: "Textile machinery 1.2t",  incoterms: "DAP", eta: "2026-06-15", client: "Orion Tekstil MChJ",  value: 340000 },
-  { ref: "SHP-0044", origin: "Samarqand, UZ",   dest: "Moskva, RU",    carrier: "O'zbekiston TY",  mode: "Rail",  cargo: "Fresh apples 80t",        incoterms: "FCA", eta: "2026-06-28", client: "Navruz Meva Sabzavot", value: 64000  },
-  { ref: "SHP-0045", origin: "Istanbul, TR",    dest: "Toshkent, UZ",  carrier: "Turkish Cargo",   mode: "Air",   cargo: "Garments & textiles 3t",  incoterms: "CIF", eta: "2026-06-14", client: "Orion Tekstil MChJ",  value: 42000  },
-];
+export const SHIPMENTS_PENDING: { ref: string; origin: string; dest: string; carrier: string; mode: string; cargo: string; incoterms: string; eta: string; client: string; value: number; }[] = [];

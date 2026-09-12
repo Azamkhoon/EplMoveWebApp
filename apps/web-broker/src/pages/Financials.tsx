@@ -31,14 +31,7 @@ const INV_STATUS_CLS: Record<InvStatus, string> = {
   overdue: "bg-red-100 text-red-700",
 };
 
-const MOCK_INVOICES: Invoice[] = [
-  { id: "i-001", number: "INV-2026-041", clientId: "c-001", clientName: "Acme Logistics",      declarationRef: "DEC-2026-0041", issuedAt: "2026-06-10", dueDate: "2026-06-24", amount: 43540, duties: 41440, brokerage: 2100, currency: "USD", status: "sent"    },
-  { id: "i-002", number: "INV-2026-040", clientId: "c-002", clientName: "Gulf Traders LLC",    declarationRef: "DEC-2026-0040", issuedAt: "2026-06-09", dueDate: "2026-06-23", amount: 1800,  duties: 0,     brokerage: 1800, currency: "USD", status: "paid"    },
-  { id: "i-003", number: "INV-2026-038", clientId: "c-004", clientName: "AusTrade Pty Ltd",    declarationRef: "DEC-2026-0038", issuedAt: "2026-06-07", dueDate: "2026-06-21", amount: 5260,  duties: 3050,  brokerage: 2210, currency: "USD", status: "overdue" },
-  { id: "i-004", number: "INV-2026-036", clientId: "c-002", clientName: "Gulf Traders LLC",    declarationRef: "DEC-2026-0036", issuedAt: "2026-06-04", dueDate: "2026-06-18", amount: 2400,  duties: 0,     brokerage: 2400, currency: "USD", status: "paid"    },
-  { id: "i-005", number: "INV-2026-035", clientId: "c-005", clientName: "ChemCorp USA Inc",    declarationRef: "DEC-2026-0035", issuedAt: "2026-06-03", dueDate: "2026-06-17", amount: 14580, duties: 11780, brokerage: 2800, currency: "USD", status: "overdue" },
-  { id: "i-006", number: "INV-2026-034", clientId: "c-003", clientName: "PL Imports Sp. z o.o",declarationRef: "DEC-2026-0034", issuedAt: "2026-05-28", dueDate: "2026-06-11", amount: 29970, duties: 26970, brokerage: 3000, currency: "USD", status: "paid"    },
-];
+const MOCK_INVOICES: Invoice[] = [];
 
 const TABS = [
   { key: "all",     label: "All"     },
@@ -49,6 +42,15 @@ const TABS = [
 ];
 
 export function Financials() {
+  return (
+    <section role="status" className="rounded-xl border border-slate-200 bg-white p-8">
+      <h1 className="text-lg font-semibold">Financials</h1>
+      <p className="mt-2 text-slate-600">This feature is not yet connected to live records. Data entry is unavailable until activation is complete.</p>
+    </section>
+  );
+}
+
+export function FinancialsView() {
   const { t } = useI18n();
   const [invoices, setInvoices] = useState<Invoice[]>(MOCK_INVOICES);
   const [tab, setTab]           = useState("all");

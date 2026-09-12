@@ -3,26 +3,11 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { DECLARATIONS, CLIENTS } from "@/data/mock";
 import { useI18n } from "@/i18n/LanguageContext";
 
-const MONTHLY = [
-  { month: "Jan", declarations: 14, cleared: 13, revenue: 48000 },
-  { month: "Feb", declarations: 17, cleared: 16, revenue: 52000 },
-  { month: "Mar", declarations: 22, cleared: 20, revenue: 61000 },
-  { month: "Apr", declarations: 18, cleared: 17, revenue: 55000 },
-  { month: "May", declarations: 25, cleared: 24, revenue: 73000 },
-  { month: "Jun", declarations: 21, cleared: 18, revenue: 69000 },
-];
+const MONTHLY: { month: string; declarations: number; cleared: number; revenue: number; }[] = [];
 
-const DEC_BY_TYPE = [
-  { label: "Import",      value: 5, color: "bg-blue-500"   },
-  { label: "Export",      value: 2, color: "bg-emerald-500" },
-  { label: "Transit",     value: 1, color: "bg-violet-500"  },
-];
+const DEC_BY_TYPE: { label: string; value: number; color: string; }[] = [];
 
-const DECLARANT_PERF = [
-  { name: "Sara Mitchell",          processed: 38, cleared: 36, avgDays: 2.1, revenue: 84000 },
-  { name: "John Farrer",            processed: 29, cleared: 27, avgDays: 2.8, revenue: 64000 },
-  { name: "Karolina Wiśniewska",    processed: 24, cleared: 22, avgDays: 3.2, revenue: 52000 },
-];
+const DECLARANT_PERF: { name: string; processed: number; cleared: number; avgDays: number; revenue: number; }[] = [];
 
 const CLIENT_REVENUE = CLIENTS.map((c) => ({
   name:     c.name,
@@ -31,14 +16,23 @@ const CLIENT_REVENUE = CLIENTS.map((c) => ({
 })).sort((a, b) => b.revenue - a.revenue);
 
 export function Analytics() {
+  return (
+    <section role="status" className="rounded-xl border border-slate-200 bg-white p-8">
+      <h1 className="text-lg font-semibold">Analytics</h1>
+      <p className="mt-2 text-slate-600">This feature is not yet connected to live records. Data entry is unavailable until activation is complete.</p>
+    </section>
+  );
+}
+
+export function AnalyticsView() {
   const { t } = useI18n();
   const totalDeclarations = MONTHLY.reduce((s, m) => s + m.declarations, 0);
   const totalCleared      = MONTHLY.reduce((s, m) => s + m.cleared, 0);
   const totalRevenue      = MONTHLY.reduce((s, m) => s + m.revenue, 0);
-  const clearanceRate     = Math.round((totalCleared / totalDeclarations) * 100);
+  const clearanceRate     = Math.round((totalCleared / Math.max(1, totalDeclarations)) * 100);
 
-  const maxDecl  = Math.max(...MONTHLY.map((m) => m.declarations));
-  const maxRev   = Math.max(...MONTHLY.map((m) => m.revenue));
+  const maxDecl  = Math.max(1, ...MONTHLY.map((m) => m.declarations));
+  const maxRev   = Math.max(1, ...MONTHLY.map((m) => m.revenue));
   const totalType = DEC_BY_TYPE.reduce((s, d) => s + d.value, 0);
 
   return (
@@ -47,7 +41,7 @@ export function Analytics() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard icon={BarChart3} cls="text-blue-600 bg-blue-50" label={t("analytics.declarationsProcessed")} value={String(totalDeclarations)} />
         <KpiCard icon={CheckCircle2} cls="text-emerald-600 bg-emerald-50" label={t("dashboard.clearanceRate")} value={`${clearanceRate}%`} />
-        <KpiCard icon={Clock} cls="text-amber-600 bg-amber-50" label={t("analytics.clearanceTime")} value="2.6" />
+        <KpiCard icon={Clock} cls="text-amber-600 bg-amber-50" label={t("analytics.clearanceTime")} value="—" />
         <KpiCard icon={TrendingUp} cls="text-teal-600 bg-teal-50" label={t("analytics.monthlyRevenue")} value={formatCurrency(totalRevenue, "USD")} />
       </div>
 
@@ -164,7 +158,7 @@ export function Analytics() {
         </div>
         <div className="divide-y divide-slate-50">
           {CLIENT_REVENUE.map((c) => {
-            const maxRev2 = Math.max(...CLIENT_REVENUE.map((x) => x.revenue));
+            const maxRev2 = Math.max(1, ...CLIENT_REVENUE.map((x) => x.revenue));
             return (
               <div key={c.name} className="flex items-center gap-4 px-5 py-3.5">
                 <div className="min-w-0 flex-1">

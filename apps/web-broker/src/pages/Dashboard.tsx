@@ -21,18 +21,9 @@ const STATUS_LABEL: Record<Declaration["status"], string> = {
   rejected: "Rejected", closed: "Closed",
 };
 
-const REVENUE_MONTHS = [
-  { month: "Jan", value: 48000 }, { month: "Feb", value: 52000 },
-  { month: "Mar", value: 61000 }, { month: "Apr", value: 55000 },
-  { month: "May", value: 73000 }, { month: "Jun", value: 69000 },
-];
+const REVENUE_MONTHS: { month: string; value: number; }[] = [];
 
-const ALERTS = [
-  { id: 1, level: "urgent",  text: "DEC-2026-0039 — docs requested deadline in 2 hours",   time: "08:42" },
-  { id: 2, level: "warn",    text: "DEC-2026-0041 — Bill of Lading still unverified",        time: "09:15" },
-  { id: 3, level: "warn",    text: "SHP-0045 arrives tomorrow — clearance not started",      time: "10:02" },
-  { id: 4, level: "info",    text: "DEC-2026-0040 export approved — goods cleared for AE",   time: "11:30" },
-];
+const ALERTS: { id: number; level: string; text: string; time: string; }[] = [];
 
 export function Dashboard() {
   const { t } = useI18n();
@@ -40,7 +31,7 @@ export function Dashboard() {
   const docsNeeded   = DECLARATIONS.filter((d) => d.status === "docs_requested");
   const approved     = DECLARATIONS.filter((d) => ["approved","released"].includes(d.status));
   const dueSoon      = DECLARATIONS.filter((d) => d.deadline && new Date(d.deadline) <= new Date("2026-06-16"));
-  const maxRev       = Math.max(...REVENUE_MONTHS.map((m) => m.value));
+  const maxRev       = Math.max(1, ...REVENUE_MONTHS.map((m) => m.value));
 
   return (
     <div className="space-y-6">

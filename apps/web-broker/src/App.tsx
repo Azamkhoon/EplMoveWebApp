@@ -21,6 +21,14 @@ function Guard() {
       </div>
     );
   }
+  if (!live) return (
+    <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+      <div role="status" className="max-w-md rounded-2xl bg-white p-8 shadow">
+        <h1 className="text-xl font-semibold">EPL Move</h1>
+        <p className="mt-3 text-slate-600">This portal is awaiting service activation. Registration and sign-in are temporarily unavailable.</p>
+      </div>
+    </main>
+  );
   if (authed) {
     return (
       <Routes>

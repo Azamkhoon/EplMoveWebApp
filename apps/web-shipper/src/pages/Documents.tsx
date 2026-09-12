@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
   Clock,
@@ -30,6 +30,7 @@ const FILTER_TYPE: Record<Filter, string | undefined> = {
 const STATUS_TONE = { verified: "green", pending: "amber", rejected: "red" } as const;
 
 export function Documents() {
+  const fileInput = useRef<HTMLInputElement>(null);
   const [docs, setDocs] = useState<ShipmentDocument[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [loading, setLoading] = useState(LIVE);
@@ -52,20 +53,22 @@ export function Documents() {
     if (LIVE) void refresh("all");
   }, []);
 
-  async function upload() {
+  async function upload(file: File) {
     if (!api) return;
     setBusy(true);
     setError(null);
     try {
-      // Minimal demo upload (a tiny inline PDF-ish blob).
-      const contentBase64 = btoa("%PDF-1.4 EPL Move demo document");
+      const contentBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",")[1]);
+        reader.onerror = () => reject(new Error("The selected file could not be read."));
+        reader.readAsDataURL(file);
+      });
       await api.uploadDocument({
         type: "Commercial Invoice",
-        name: `invoice-${Date.now()}.pdf`,
-        contentType: "application/pdf",
+        name: file.name,
+        contentType: file.type || "application/octet-stream",
         contentBase64,
-        amount: 8650,
-        currency: "USD",
       });
       await refresh();
     } catch (e) {
@@ -95,6 +98,11 @@ export function Documents() {
 
   return (
     <div className="space-y-5">
+      <input ref={fileInput} type="file" aria-label="Upload document" className="hidden" onChange={(event) => {
+        const file = event.target.files?.[0];
+        if (file) void upload(file);
+        event.target.value = "";
+      }} />
       <div className="flex items-center justify-between gap-3">
         <Tabs
           variant="pill"
@@ -110,7 +118,7 @@ export function Documents() {
             { id: "pod", label: "Proof of delivery", icon: <CheckCircle2 size={14} /> },
           ]}
         />
-        <Button size="md" disabled={busy} onClick={upload}>
+        <Button size="md" disabled={busy} onClick={() => fileInput.current?.click()}>
           {busy ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
           Upload
         </Button>

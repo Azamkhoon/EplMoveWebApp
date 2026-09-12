@@ -36,12 +36,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(LIVE);
 
   useEffect(() => {
-    if (sessionStorage.getItem(MOCK_KEY)) { setAuthed(true); setLoading(false); return; }
+    sessionStorage.removeItem(MOCK_KEY);
     if (!LIVE || !api) { setLoading(false); return; }
     restoreToken();
     api
       .refresh()
       .then((t) => setAuthed(Boolean(t)))
+      .catch(() => setAuthed(false))
       .finally(() => setLoading(false));
   }, []);
 
