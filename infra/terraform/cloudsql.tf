@@ -19,7 +19,7 @@ resource "google_sql_database_instance" "main" {
   name             = "epl-move-${var.env}"
   database_version = "POSTGRES_16"
   region           = var.region
-  depends_on       = [google_project_service.enabled]
+  depends_on       = [google_project_service.enabled, google_service_networking_connection.psa]
 
   settings {
     tier              = var.db_tier

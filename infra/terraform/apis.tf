@@ -11,6 +11,7 @@ locals {
     "compute.googleapis.com",
     "servicenetworking.googleapis.com",
     "iam.googleapis.com",
+    "vpcaccess.googleapis.com",
   ]
 }
 

@@ -10,8 +10,10 @@ terraform {
       version = "~> 3.6"
     }
   }
-  # Configure a GCS backend for state in real environments:
-  # backend "gcs" { bucket = "epl-move-tfstate"; prefix = "env/prod" }
+  backend "gcs" {
+    bucket = "epl-prod-tfstate"
+    prefix = "env/prod"
+  }
 }
 
 provider "google" {
