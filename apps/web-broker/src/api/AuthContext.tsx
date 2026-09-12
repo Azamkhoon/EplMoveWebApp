@@ -1,9 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, LIVE, restoreToken } from "./client";
 
-const DEMO_EMAIL    = "broker@clearance.test";
-const DEMO_PASSWORD = "broker123";
-const MOCK_KEY      = "epl-broker-mock-authed";
+const MOCK_KEY = "epl-broker-mock-authed";
 
 interface AuthState {
   live: boolean; authed: boolean; loading: boolean;
@@ -32,13 +30,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string, tenantSlug?: string) => {
-    // Keep the static demo available only when no backend is configured. In
-    // live mode every screen requires a real shared identity and JWT.
-    if (!LIVE && email === DEMO_EMAIL && password === DEMO_PASSWORD) {
-      sessionStorage.setItem(MOCK_KEY, "1");
-      setAuthed(true);
-      return;
-    }
     if (!api) throw new Error("No API");
     await api.login({ email, password, tenantSlug });
     setAuthed(true);

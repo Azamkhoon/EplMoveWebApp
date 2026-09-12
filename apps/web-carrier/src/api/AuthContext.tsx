@@ -7,9 +7,7 @@ import {
 } from "react";
 import { api, LIVE, restoreToken } from "./client";
 
-const DEMO_EMAIL    = "carrier@oceanflex.test";
-const DEMO_PASSWORD = "carrier123";
-const MOCK_KEY      = "epl-carrier-mock-authed";
+const MOCK_KEY = "epl-carrier-mock-authed";
 
 interface AuthState {
   live: boolean;
@@ -52,12 +50,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authed,
     loading,
     async login(email, password, tenantSlug) {
-      // Demo shortcut — works even when backend is offline
-      if (!LIVE && email === DEMO_EMAIL && password === DEMO_PASSWORD) {
-        sessionStorage.setItem(MOCK_KEY, "1");
-        setAuthed(true);
-        return;
-      }
       await api!.login({ email, password, tenantSlug });
       setAuthed(true);
     },

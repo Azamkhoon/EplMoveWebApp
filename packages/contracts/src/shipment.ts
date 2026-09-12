@@ -89,6 +89,12 @@ export const AssignBrokerInput = z.object({
 });
 export type AssignBrokerInput = z.infer<typeof AssignBrokerInput>;
 
+export const AssignCarrierInput = z.object({
+  carrierTenantId: z.string().uuid(),
+  carrierName: z.string().min(1),
+});
+export type AssignCarrierInput = z.infer<typeof AssignCarrierInput>;
+
 export const UpdateShipmentStatusInput = z.object({
   status: ShipmentStatus,
   comment: z.string().max(2000).optional(),

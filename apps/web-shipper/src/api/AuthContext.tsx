@@ -13,8 +13,6 @@ import {
   setDemoMode,
 } from "./client";
 
-const DEMO_EMAIL    = "demo@acme-logistics.test";
-const DEMO_PASSWORD = "demo12345";
 
 interface AuthState {
   live: boolean; // true = real backend, false = mock mode
@@ -31,6 +29,7 @@ interface AuthState {
     city: string;
     address: string;
     phone: string;
+    kind?: "shipper" | "carrier" | "broker";
   }) => Promise<void>;
   requestOtp: (email: string) => Promise<{ devCode?: string }>;
   verifyOtp: (email: string, code: string) => Promise<void>;
@@ -60,13 +59,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authed,
     loading,
     async login(email, password, tenantSlug) {
-      // Demo shortcut — works even when backend is offline
-      if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
-        sessionStorage.setItem(DEMO_SESSION_KEY, "1");
-        setDemoMode(true);
-        setAuthed(true);
-        return;
-      }
       sessionStorage.removeItem(DEMO_SESSION_KEY);
       setDemoMode(false);
       await api!.login({ email, password, tenantSlug });

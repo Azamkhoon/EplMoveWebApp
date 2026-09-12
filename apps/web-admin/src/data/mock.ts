@@ -50,14 +50,14 @@ export const TENANTS: Tenant[] = [
 
 // ── Members ───────────────────────────────────────────────────────────────────
 export const MEMBERS: Member[] = [
-  { id: "m-001", tenantId: "t-001", tenantName: "Acme Logistics",       userId: "u-001", email: "demo@acme-logistics.test",   roleKey: "shipper_admin",  createdAt: "2026-01-12T09:05:00Z" },
-  { id: "m-002", tenantId: "t-001", tenantName: "Acme Logistics",       userId: "u-002", email: "ops@acme-logistics.test",    roleKey: "shipper_member", createdAt: "2026-01-15T10:00:00Z" },
-  { id: "m-003", tenantId: "t-002", tenantName: "OceanFlex Lines",       userId: "u-003", email: "carrier@oceanflex.test",    roleKey: "carrier_admin",  createdAt: "2026-02-05T14:02:00Z" },
-  { id: "m-004", tenantId: "t-003", tenantName: "GlobalTrade GmbH",      userId: "u-004", email: "admin@globaltrade.test",    roleKey: "shipper_admin",  createdAt: "2026-02-18T11:05:00Z" },
-  { id: "m-005", tenantId: "t-004", tenantName: "Pacific Freight Co.",   userId: "u-005", email: "ops@pacific-freight.test",  roleKey: "carrier_admin",  createdAt: "2026-03-01T08:10:00Z" },
-  { id: "m-006", tenantId: "t-006", tenantName: "Rapid Haul Ltd",        userId: "u-006", email: "info@rapidhaul.test",      roleKey: "carrier_admin",  createdAt: "2026-03-28T16:05:00Z" },
-  { id: "m-007", tenantId: "t-007", tenantName: "Crescent Trading LLC",  userId: "u-007", email: "trade@crescent.test",      roleKey: "shipper_admin",  createdAt: "2026-04-03T09:08:00Z" },
-  { id: "m-008", tenantId: "t-008", tenantName: "Atlas Cargo S.A.",      userId: "u-008", email: "fleet@atlascargo.test",    roleKey: "carrier_admin",  createdAt: "2026-04-22T12:04:00Z" },
+  { id: "m-001", tenantId: "t-001", tenantName: "Acme Logistics",       userId: "u-001", email: "admin@acme-logistics.com",   roleKey: "shipper_admin",  createdAt: "2026-01-12T09:05:00Z" },
+  { id: "m-002", tenantId: "t-001", tenantName: "Acme Logistics",       userId: "u-002", email: "ops@acme-logistics.com",     roleKey: "shipper_member", createdAt: "2026-01-15T10:00:00Z" },
+  { id: "m-003", tenantId: "t-002", tenantName: "OceanFlex Lines",       userId: "u-003", email: "admin@oceanflex.com",       roleKey: "carrier_admin",  createdAt: "2026-02-05T14:02:00Z" },
+  { id: "m-004", tenantId: "t-003", tenantName: "GlobalTrade GmbH",      userId: "u-004", email: "admin@globaltrade.com",     roleKey: "shipper_admin",  createdAt: "2026-02-18T11:05:00Z" },
+  { id: "m-005", tenantId: "t-004", tenantName: "Pacific Freight Co.",   userId: "u-005", email: "ops@pacific-freight.com",   roleKey: "carrier_admin",  createdAt: "2026-03-01T08:10:00Z" },
+  { id: "m-006", tenantId: "t-006", tenantName: "Rapid Haul Ltd",        userId: "u-006", email: "info@rapidhaul.com",        roleKey: "carrier_admin",  createdAt: "2026-03-28T16:05:00Z" },
+  { id: "m-007", tenantId: "t-007", tenantName: "Crescent Trading LLC",  userId: "u-007", email: "trade@crescent-trading.com", roleKey: "shipper_admin",  createdAt: "2026-04-03T09:08:00Z" },
+  { id: "m-008", tenantId: "t-008", tenantName: "Atlas Cargo S.A.",      userId: "u-008", email: "fleet@atlascargo.com",      roleKey: "carrier_admin",  createdAt: "2026-04-22T12:04:00Z" },
 ];
 
 // ── Shipments ─────────────────────────────────────────────────────────────────
@@ -83,14 +83,14 @@ export const INVOICES: AdminInvoice[] = [
 
 // ── Audit log ─────────────────────────────────────────────────────────────────
 export const AUDIT_LOG: AuditEvent[] = [
-  { id: "a-001", ts: "2026-06-14T11:42:00Z", actor: "admin@epl-move.internal", tenantName: "—",                   action: "login",             resource: "auth",       detail: "platform_admin login",          ip: "10.0.0.1"   },
-  { id: "a-002", ts: "2026-06-14T10:55:00Z", actor: "info@rapidhaul.test",     tenantName: "Rapid Haul Ltd",       action: "tenant.suspended",  resource: "tenant",     detail: "Account suspended by platform admin", ip: "10.0.0.1" },
-  { id: "a-003", ts: "2026-06-14T09:30:00Z", actor: "carrier@oceanflex.test",  tenantName: "OceanFlex Lines",      action: "bid.submitted",     resource: "quote",      detail: "Bid $14,200 on SHP-0041",       ip: "195.1.2.3"  },
-  { id: "a-004", ts: "2026-06-14T09:12:00Z", actor: "demo@acme-logistics.test",tenantName: "Acme Logistics",       action: "bid.accepted",      resource: "quote",      detail: "Accepted OceanFlex bid for SHP-0041", ip: "82.5.6.7" },
-  { id: "a-005", ts: "2026-06-13T16:48:00Z", actor: "admin@globaltrade.test",  tenantName: "GlobalTrade GmbH",     action: "load.created",      resource: "load",       detail: "FCL 40' — Frankfurt → Dubai",    ip: "91.2.3.4"  },
-  { id: "a-006", ts: "2026-06-13T14:20:00Z", actor: "demo@acme-logistics.test",tenantName: "Acme Logistics",       action: "invoice.paid",      resource: "billing",    detail: "INV-2026-034 paid $29,970",     ip: "82.5.6.7"  },
-  { id: "a-007", ts: "2026-06-13T11:05:00Z", actor: "fleet@atlascargo.test",   tenantName: "Atlas Cargo S.A.",     action: "document.uploaded", resource: "doc",        detail: "Bill of Lading — SHP-0039.pdf", ip: "201.3.4.5"  },
-  { id: "a-008", ts: "2026-06-12T17:30:00Z", actor: "ops@pacific-freight.test",tenantName: "Pacific Freight Co.", action: "member.invited",    resource: "membership", detail: "Invited driver@pacific.test",   ip: "110.4.5.6"  },
+  { id: "a-001", ts: "2026-06-14T11:42:00Z", actor: "admin@epl-move.com",         tenantName: "—",                   action: "login",             resource: "auth",       detail: "platform_admin login",                ip: "—"  },
+  { id: "a-002", ts: "2026-06-14T10:55:00Z", actor: "info@rapidhaul.com",          tenantName: "Rapid Haul Ltd",       action: "tenant.suspended",  resource: "tenant",     detail: "Account suspended by platform admin", ip: "—"  },
+  { id: "a-003", ts: "2026-06-14T09:30:00Z", actor: "admin@oceanflex.com",         tenantName: "OceanFlex Lines",      action: "bid.submitted",     resource: "quote",      detail: "Bid $14,200 on SHP-0041",             ip: "—"  },
+  { id: "a-004", ts: "2026-06-14T09:12:00Z", actor: "admin@acme-logistics.com",    tenantName: "Acme Logistics",       action: "bid.accepted",      resource: "quote",      detail: "Accepted OceanFlex bid for SHP-0041", ip: "—"  },
+  { id: "a-005", ts: "2026-06-13T16:48:00Z", actor: "admin@globaltrade.com",       tenantName: "GlobalTrade GmbH",     action: "load.created",      resource: "load",       detail: "FCL 40' — Frankfurt → Dubai",         ip: "—"  },
+  { id: "a-006", ts: "2026-06-13T14:20:00Z", actor: "admin@acme-logistics.com",    tenantName: "Acme Logistics",       action: "invoice.paid",      resource: "billing",    detail: "INV-2026-034 paid $29,970",           ip: "—"  },
+  { id: "a-007", ts: "2026-06-13T11:05:00Z", actor: "fleet@atlascargo.com",        tenantName: "Atlas Cargo S.A.",     action: "document.uploaded", resource: "doc",        detail: "Bill of Lading — SHP-0039.pdf",       ip: "—"  },
+  { id: "a-008", ts: "2026-06-12T17:30:00Z", actor: "ops@pacific-freight.com",     tenantName: "Pacific Freight Co.",  action: "member.invited",    resource: "membership", detail: "New member invited",                  ip: "—"  },
 ];
 
 // ── Service health ────────────────────────────────────────────────────────────

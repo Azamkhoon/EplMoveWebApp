@@ -22,15 +22,14 @@ const NotFound = lazy(() => import("@/pages/NotFound").then((module) => ({ defau
 export default function App() {
   const auth = useAuth();
 
-  // Live mode: gate the whole app behind authentication.
-  if (auth.live && auth.loading) {
+  if (auth.loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-400">
         <Loader2 className="animate-spin" />
       </div>
     );
   }
-  if (auth.live && !auth.authed) return <Login />;
+  if (!auth.authed) return <Login />;
 
   return (
     <Suspense

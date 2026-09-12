@@ -29,6 +29,7 @@ import type {
   Invoice,
   Notification,
   AssignBrokerInput,
+  AssignCarrierInput,
   UpdateShipmentStatusInput,
   DocumentRequest,
   CreateDocumentRequestInput,
@@ -280,6 +281,13 @@ export class EplClient {
     });
   }
 
+  assignCarrier(shipmentId: string, input: AssignCarrierInput): Promise<Shipment> {
+    return this.request<Shipment>(`/shipments/${shipmentId}/carrier-assignment`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
   updateShipmentStatus(shipmentId: string, input: UpdateShipmentStatusInput): Promise<Shipment> {
     return this.request<Shipment>(`/shipments/${shipmentId}/status`, {
       method: "PATCH",
@@ -521,6 +529,7 @@ export type {
   CreateDocumentRequestInput,
   ReviewDocumentRequestInput,
   AssignBrokerInput,
+  AssignCarrierInput,
   UpdateShipmentStatusInput,
   ShipmentMessage,
   SendShipmentMessageInput,

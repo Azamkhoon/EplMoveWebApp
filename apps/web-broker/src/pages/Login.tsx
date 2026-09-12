@@ -9,15 +9,12 @@ import { useAuth } from "@/api/AuthContext";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { useI18n } from "@/i18n/LanguageContext";
 
-const DEMO_EMAIL = "broker@clearance.test";
-const DEMO_PASSWORD = "broker123";
-
 export function Login() {
   const auth = useAuth();
   const { t } = useI18n();
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [email, setEmail] = useState(auth.live ? "" : DEMO_EMAIL);
-  const [password, setPassword] = useState(auth.live ? "" : DEMO_PASSWORD);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [tenantSlug, setTenantSlug] = useState("");
   const [form, setForm] = useState({
     name: "",
@@ -68,9 +65,7 @@ export function Login() {
           />
           <div className="mb-5 flex items-center gap-2 rounded-lg bg-teal-900/40 px-4 py-3 ring-1 ring-teal-700/50">
             <Shield size={15} className="shrink-0 text-teal-400" />
-            <p className="text-xs text-teal-300">
-              {auth.live ? "Uses the shared EPL Move identity and company directory." : t("login.demo")}
-            </p>
+            <p className="text-xs text-teal-300">Uses the shared EPL Move identity and company directory.</p>
           </div>
 
           {error && <div className="mb-4 rounded-lg bg-red-900/30 px-3 py-2.5 text-sm text-red-300 ring-1 ring-red-700/50">{error}</div>}

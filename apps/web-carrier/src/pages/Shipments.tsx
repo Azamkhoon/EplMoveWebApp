@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, FileText, Loader2, Search, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileText, Loader2, Search, Upload, UserPlus } from "lucide-react";
 import { ApiError, type Shipment, type ShipmentDocument, type ShipmentStatus } from "@epl/sdk";
 import { api } from "@/api/client";
 import { Badge } from "@/components/ui/Badge";
@@ -8,6 +8,8 @@ import { Modal } from "@/components/ui/Modal";
 import { Field, Select } from "@/components/ui/Field";
 import { useI18n } from "@/i18n/LanguageContext";
 import { ShipmentMessages } from "@/components/shipment/ShipmentMessages";
+
+type Company = { id: string; name: string; slug: string; kind: string; country?: string; city?: string };
 
 type Tone = "slate" | "amber" | "blue" | "navy" | "green" | "red";
 
@@ -39,10 +41,14 @@ export function Shipments() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [selected, setSelected] = useState<Shipment | null>(null);
   const [docs, setDocs] = useState<ShipmentDocument[]>([]);
+  const [brokers, setBrokers] = useState<Company[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ShipmentStatus | "all">("all");
   const [newStatus, setNewStatus] = useState<ShipmentStatus | "">("");
   const [updating, setUpdating] = useState(false);
+  const [showInviteBroker, setShowInviteBroker] = useState(false);
+  const [brokerId, setBrokerId] = useState("");
+  const [feedback, setFeedback] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,8 +59,13 @@ export function Shipments() {
     setLoading(true);
     setError(null);
     try {
-      const next = await api.listShipments();
+      const [next, brokerCompanies] = await Promise.all([
+        api.listShipments(),
+        api.listCompanies("broker").catch(() => [] as Company[]),
+      ]);
       setShipments(next);
+      setBrokers(brokerCompanies);
+      setBrokerId(brokerCompanies[0]?.id ?? "");
       setSelected((current) => next.find((item) => item.id === current?.id) ?? next[0] ?? null);
     } catch (reason) {
       setError(reason instanceof ApiError ? reason.message : "Failed to load shipments");
@@ -101,6 +112,23 @@ export function Shipments() {
       setUpdating(false);
     } catch (reason) {
       setError(reason instanceof ApiError ? reason.message : "Status update failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function inviteBroker() {
+    if (!api || !selected || !brokerId) return;
+    const broker = brokers.find((b) => b.id === brokerId);
+    if (!broker) return;
+    setBusy(true); setError(null);
+    try {
+      await api.assignBroker(selected.id, { brokerTenantId: broker.id, brokerName: broker.name });
+      setShowInviteBroker(false);
+      setFeedback(`${broker.name} has been invited to this shipment.`);
+      await load();
+    } catch (reason) {
+      setError(reason instanceof ApiError ? reason.message : "Broker invite failed");
     } finally {
       setBusy(false);
     }
@@ -154,6 +182,7 @@ export function Shipments() {
       </div>
 
       {error && <div className="rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-700 ring-1 ring-red-200">{error}</div>}
+      {feedback && <div className="rounded-lg bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700 ring-1 ring-emerald-200">{feedback}</div>}
 
       <div className="flex min-h-[520px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card">
         <div className="w-80 shrink-0 divide-y divide-slate-50 overflow-y-auto border-r border-slate-100">
@@ -198,17 +227,21 @@ export function Shipments() {
                 </div>
                 <p className="mt-1 text-sm text-slate-500">{selected.origin.city} → {selected.destination.city}</p>
               </div>
-              {nextStatus && (
+              <div className="flex shrink-0 flex-wrap gap-2">
                 <Button
                   size="sm"
-                  onClick={() => {
-                    setNewStatus(nextStatus);
-                    setUpdating(true);
-                  }}
+                  variant="outline"
+                  onClick={() => { setBrokerId(brokers[0]?.id ?? ""); setShowInviteBroker(true); }}
+                >
+                  <UserPlus size={13} /> {selected.brokerName ? "Reassign broker" : "Invite broker"}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => { setNewStatus(nextStatus ?? ""); setUpdating(true); }}
                 >
                   {t("shipments.update")}
                 </Button>
-              )}
+              </div>
             </div>
 
             <div className="mb-6 grid grid-cols-2 gap-4 rounded-xl bg-slate-50 p-4 text-xs md:grid-cols-4">
@@ -266,22 +299,51 @@ export function Shipments() {
       <Modal
         open={updating}
         onClose={() => setUpdating(false)}
-        title={`${t("shipments.update")} · ${selected?.reference ?? ""}`}
+        title={`Update shipment status · ${selected?.reference ?? ""}`}
+        subtitle="Choose a new status. The change will be visible to the shipper and broker."
         footer={
           <>
             <Button variant="outline" onClick={() => setUpdating(false)}>{t("common.cancel")}</Button>
-            <Button disabled={busy || !newStatus} onClick={() => void updateStatus()}>{t("common.confirm")}</Button>
+            <Button disabled={busy || !newStatus} onClick={() => void updateStatus()}>
+              {busy ? <Loader2 size={14} className="animate-spin" /> : null}
+              {t("common.confirm")}
+            </Button>
           </>
         }
       >
-        <Field label={t("shipments.newStatus")}>
+        <Field label="New status">
           <Select value={newStatus} onChange={(event) => setNewStatus(event.target.value as ShipmentStatus)}>
-            <option value="">{t("shipments.selectStatus")}</option>
-            {Object.entries(STATUS_META).map(([value, meta]) => (
+            <option value="">Select status…</option>
+            {Object.entries(STATUS_META).filter(([v]) => v !== selected?.status).map(([value, meta]) => (
               <option key={value} value={value}>{meta.label}</option>
             ))}
           </Select>
         </Field>
+      </Modal>
+
+      <Modal
+        open={showInviteBroker}
+        onClose={() => setShowInviteBroker(false)}
+        title="Invite customs broker"
+        subtitle="The selected broker company will gain access to this shipment."
+      >
+        <div className="space-y-4">
+          <Field label="Broker company">
+            <Select value={brokerId} onChange={(event) => setBrokerId(event.target.value)}>
+              <option value="">Select a broker…</option>
+              {brokers.map((b) => <option key={b.id} value={b.id}>{b.name}{b.city ? ` — ${b.city}` : ""}</option>)}
+            </Select>
+          </Field>
+          {brokers.length === 0 && (
+            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700">No registered Broker companies available. The broker must sign up first.</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowInviteBroker(false)}>Cancel</Button>
+            <Button disabled={!brokerId || busy} onClick={() => void inviteBroker()}>
+              {busy ? <Loader2 size={14} className="animate-spin" /> : null} Invite broker
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

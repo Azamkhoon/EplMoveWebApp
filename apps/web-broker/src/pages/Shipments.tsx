@@ -8,13 +8,25 @@ import {
   Plane,
   Search,
   Ship,
+  UserPlus,
 } from "lucide-react";
 import { ApiError, type Shipment, type ShipmentStatus } from "@epl/sdk";
 import { api } from "@/api/client";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { Field, Select } from "@/components/ui/Field";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useI18n } from "@/i18n/LanguageContext";
 import { ShipmentMessages } from "@/components/shipment/ShipmentMessages";
+
+type Company = { id: string; name: string; slug: string; kind: string; country?: string; city?: string };
+
+const CUSTOMS_STATUSES: { value: ShipmentStatus; label: string }[] = [
+  { value: "customs", label: "Customs clearance started" },
+  { value: "delivered", label: "Customs cleared — delivered" },
+  { value: "delayed", label: "Customs hold — delayed" },
+  { value: "cancelled", label: "Cancelled" },
+];
 
 const STATUS_CLS: Record<ShipmentStatus, string> = {
   carrier_selected: "bg-slate-100 text-slate-600",
@@ -38,18 +50,29 @@ export function Shipments() {
   const navigate = useNavigate();
   const [items, setItems] = useState<Shipment[]>([]);
   const [selected, setSelected] = useState<Shipment | null>(null);
+  const [carriers, setCarriers] = useState<Company[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showInviteCarrier, setShowInviteCarrier] = useState(false);
+  const [newStatus, setNewStatus] = useState<ShipmentStatus | "">("");
+  const [carrierId, setCarrierId] = useState("");
 
   async function load(preferredId?: string) {
     if (!api) return;
     setLoading(true);
     setError(null);
     try {
-      const shipments = await api.listShipments();
+      const [shipments, carrierCompanies] = await Promise.all([
+        api.listShipments(),
+        api.listCompanies("carrier").catch(() => [] as Company[]),
+      ]);
       setItems(shipments);
+      setCarriers(carrierCompanies);
+      setCarrierId(carrierCompanies[0]?.id ?? "");
       const id = preferredId ?? selected?.id;
       const choice = shipments.find((shipment) => shipment.id === id) ?? shipments[0] ?? null;
       setSelected(choice ? await api.getShipment(choice.id) : null);
@@ -89,15 +112,13 @@ export function Shipments() {
     }
   }
 
-  async function moveToCustoms() {
-    if (!api || !selected) return;
-    setBusy(true);
-    setError(null);
+  async function updateCustomsStatus() {
+    if (!api || !selected || !newStatus) return;
+    setBusy(true); setError(null);
     try {
-      await api.updateShipmentStatus(selected.id, {
-        status: "customs",
-        comment: "Customs broker started clearance review",
-      });
+      await api.updateShipmentStatus(selected.id, { status: newStatus });
+      setShowStatusModal(false);
+      setFeedback(`Status updated to "${CUSTOMS_STATUSES.find((s) => s.value === newStatus)?.label ?? newStatus}".`);
       await load(selected.id);
     } catch (reason) {
       setError(reason instanceof ApiError ? reason.message : "Could not update customs status");
@@ -106,15 +127,29 @@ export function Shipments() {
     }
   }
 
-  const canStartCustoms = selected && ["picked_up", "in_transit", "delayed"].includes(selected.status);
+  async function inviteCarrier() {
+    if (!api || !selected || !carrierId) return;
+    const carrier = carriers.find((c) => c.id === carrierId);
+    if (!carrier) return;
+    setBusy(true); setError(null);
+    try {
+      await api.assignCarrier(selected.id, { carrierTenantId: carrier.id, carrierName: carrier.name });
+      setShowInviteCarrier(false);
+      setFeedback(`${carrier.name} has been invited to this shipment.`);
+      await load(selected.id);
+    } catch (reason) {
+      setError(reason instanceof ApiError ? reason.message : "Carrier invite failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const canUpdateCustoms = selected && !["completed", "cancelled"].includes(selected.status);
 
   return (
     <div className="space-y-3">
-      {error && (
-        <div className="rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-700 ring-1 ring-red-200">
-          {error}
-        </div>
-      )}
+      {error && <div className="rounded-lg bg-red-50 px-4 py-2.5 text-sm text-red-700 ring-1 ring-red-200">{error}</div>}
+      {feedback && <div className="rounded-lg bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700 ring-1 ring-emerald-200">{feedback}</div>}
       <div className="flex h-[calc(100vh-10rem)] min-h-[560px] gap-4">
         <div className="flex w-80 shrink-0 flex-col rounded-xl border border-slate-200 bg-white lg:w-96">
           <div className="border-b border-slate-100 px-3 py-3">
@@ -195,16 +230,26 @@ export function Shipments() {
                   <h2 className="mt-2 font-mono text-xl font-bold text-slate-900">{selected.reference}</h2>
                   <p className="mt-0.5 text-sm text-slate-500">Assigned to {selected.brokerName ?? "your brokerage"}</p>
                 </div>
-                <div className="flex shrink-0 gap-2">
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => { setCarrierId(carriers[0]?.id ?? ""); setShowInviteCarrier(true); }}
+                  >
+                    <UserPlus size={15} /> Invite carrier
+                  </Button>
                   <Button
                     variant="outline"
                     onClick={() => navigate(`/documents?shipmentId=${selected.id}`)}
                   >
                     <FileQuestion size={15} /> Request document
                   </Button>
-                  {canStartCustoms && (
-                    <Button disabled={busy} onClick={() => void moveToCustoms()} className="bg-teal-600 hover:bg-teal-700">
-                      {busy && <Loader2 size={14} className="animate-spin" />} Start customs
+                  {canUpdateCustoms && (
+                    <Button
+                      disabled={busy}
+                      onClick={() => { setNewStatus(""); setShowStatusModal(true); }}
+                      className="bg-teal-600 hover:bg-teal-700"
+                    >
+                      Update customs status
                     </Button>
                   )}
                 </div>
@@ -244,6 +289,55 @@ export function Shipments() {
           )}
         </div>
       </div>
+
+      <Modal
+        open={showStatusModal}
+        onClose={() => setShowStatusModal(false)}
+        title="Update customs status"
+        subtitle="Changes are visible to the shipper and carrier immediately."
+      >
+        <div className="space-y-4">
+          <Field label="Customs status">
+            <Select value={newStatus} onChange={(event) => setNewStatus(event.target.value as ShipmentStatus)}>
+              <option value="">Select status…</option>
+              {CUSTOMS_STATUSES.filter((s) => s.value !== selected?.status).map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </Select>
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowStatusModal(false)}>Cancel</Button>
+            <Button disabled={!newStatus || busy} onClick={() => void updateCustomsStatus()} className="bg-teal-600 hover:bg-teal-700">
+              {busy ? <Loader2 size={14} className="animate-spin" /> : null} Confirm
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={showInviteCarrier}
+        onClose={() => setShowInviteCarrier(false)}
+        title="Invite carrier"
+        subtitle="The selected carrier will gain access to coordinate this shipment."
+      >
+        <div className="space-y-4">
+          <Field label="Carrier company">
+            <Select value={carrierId} onChange={(event) => setCarrierId(event.target.value)}>
+              <option value="">Select a carrier…</option>
+              {carriers.map((c) => <option key={c.id} value={c.id}>{c.name}{c.city ? ` — ${c.city}` : ""}</option>)}
+            </Select>
+          </Field>
+          {carriers.length === 0 && (
+            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700">No registered Carrier companies available. The carrier must sign up first.</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowInviteCarrier(false)}>Cancel</Button>
+            <Button disabled={!carrierId || busy} onClick={() => void inviteCarrier()}>
+              {busy ? <Loader2 size={14} className="animate-spin" /> : null} Invite carrier
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

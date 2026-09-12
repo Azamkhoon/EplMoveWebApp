@@ -41,7 +41,7 @@ import type { Shipment } from "@/types";
 import { NotFound } from "./NotFound";
 
 type Tab = "overview" | "docs" | "status" | "tracking" | "chat";
-type BrokerCompany = { id: string; name: string; slug: string; kind: string; country?: string; city?: string };
+type Company = { id: string; name: string; slug: string; kind: string; country?: string; city?: string };
 
 export function ShipmentDetail() {
   const { id } = useParams();
@@ -51,9 +51,12 @@ export function ShipmentDetail() {
   const [domainShipment, setDomainShipment] = useState<DomainShipment | null>(null);
   const [documents, setDocuments] = useState<DomainDocument[]>([]);
   const [requests, setRequests] = useState<DocumentRequest[]>([]);
-  const [brokers, setBrokers] = useState<BrokerCompany[]>([]);
+  const [brokers, setBrokers] = useState<Company[]>([]);
+  const [carriers, setCarriers] = useState<Company[]>([]);
   const [brokerId, setBrokerId] = useState("");
+  const [carrierId, setCarrierId] = useState("");
   const [showBroker, setShowBroker] = useState(false);
+  const [showCarrier, setShowCarrier] = useState(false);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,11 +82,12 @@ export function ShipmentDetail() {
     setError(null);
     try {
       const shipment = await api.getShipment(id);
-      const [load, docs, documentRequests, brokerCompanies] = await Promise.all([
+      const [load, docs, documentRequests, brokerCompanies, carrierCompanies] = await Promise.all([
         api.getLoad(shipment.loadId).catch(() => undefined),
         api.listDocuments({ shipmentId: id }).catch(() => []),
         api.listDocumentRequests(id).catch(() => []),
         api.listCompanies("broker").catch(() => []),
+        api.listCompanies("carrier").catch(() => []),
       ]);
       const view = toViewShipment(shipment, load);
       view.documents = docs.map((document) => ({
@@ -100,7 +104,9 @@ export function ShipmentDetail() {
       setDocuments(docs);
       setRequests(documentRequests);
       setBrokers(brokerCompanies);
+      setCarriers(carrierCompanies);
       setBrokerId(shipment.brokerTenantId ?? brokerCompanies[0]?.id ?? "");
+      setCarrierId(carrierCompanies[0]?.id ?? "");
     } catch (reason) {
       // Backend unavailable or shipment missing — fall back to demo data when possible.
       if (mock) {
@@ -136,10 +142,28 @@ export function ShipmentDetail() {
     try {
       await api.assignBroker(domainShipment.id, { brokerTenantId: broker.id, brokerName: broker.name });
       setShowBroker(false);
-      setFeedback(`${broker.name} can now access this shipment.`);
+      setFeedback(`${broker.name} has been invited and can now access this shipment.`);
       await loadShipment();
     } catch (reason) {
       setError(reason instanceof ApiError ? reason.message : "Broker assignment failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function assignCarrier() {
+    if (!api || !domainShipment || !carrierId) return;
+    const carrier = carriers.find((c) => c.id === carrierId);
+    if (!carrier) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.assignCarrier(domainShipment.id, { carrierTenantId: carrier.id, carrierName: carrier.name });
+      setShowCarrier(false);
+      setFeedback(`${carrier.name} has been invited and can now access this shipment.`);
+      await loadShipment();
+    } catch (reason) {
+      setError(reason instanceof ApiError ? reason.message : "Carrier assignment failed");
     } finally {
       setBusy(false);
     }
@@ -175,11 +199,16 @@ export function ShipmentDetail() {
               <p className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-500"><MapPin size={14} />{shipment.origin.city} → {shipment.destination.city} · {shipment.mode} · {shipment.commodity}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {domainShipment && (
-              <Button variant="outline" size="md" onClick={() => setShowBroker(true)}>
-                <UserPlus size={15} /> {domainShipment.brokerName ? "Reassign broker" : "Assign broker"}
-              </Button>
+              <>
+                <Button variant="outline" size="md" onClick={() => setShowCarrier(true)}>
+                  <UserPlus size={15} /> {shipment.carrier && shipment.carrier !== "—" && shipment.carrier !== "Awaiting carrier" ? "Reassign carrier" : "Invite carrier"}
+                </Button>
+                <Button variant="outline" size="md" onClick={() => setShowBroker(true)}>
+                  <UserPlus size={15} /> {domainShipment.brokerName ? "Reassign broker" : "Invite broker"}
+                </Button>
+              </>
             )}
             <Button size="md" onClick={() => setTab("chat")}><MessageSquare size={15} /> Message participants</Button>
           </div>
@@ -219,7 +248,7 @@ export function ShipmentDetail() {
         </CardBody>
       </Card>
 
-      <Modal open={showBroker} onClose={() => setShowBroker(false)} title="Assign customs broker" subtitle="The selected broker company will immediately gain access to this shipment.">
+      <Modal open={showBroker} onClose={() => setShowBroker(false)} title="Invite customs broker" subtitle="The selected broker company will immediately gain access to this shipment.">
         <div className="space-y-4">
           <Field label="Broker company">
             <Select value={brokerId} onChange={(event) => setBrokerId(event.target.value)}>
@@ -227,8 +256,21 @@ export function ShipmentDetail() {
               {brokers.map((broker) => <option key={broker.id} value={broker.id}>{broker.name}{broker.city ? ` — ${broker.city}` : ""}</option>)}
             </Select>
           </Field>
-          {brokers.length === 0 && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700">No registered Broker company is available yet. Create one from the Broker portal first.</p>}
-          <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setShowBroker(false)}>Cancel</Button><Button disabled={!brokerId || busy} onClick={() => void assignBroker()}>{busy && <Loader2 size={14} className="animate-spin" />} Assign broker</Button></div>
+          {brokers.length === 0 && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700">No registered Broker company is available yet. Sign up from the Broker portal first.</p>}
+          <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setShowBroker(false)}>Cancel</Button><Button disabled={!brokerId || busy} onClick={() => void assignBroker()}>{busy && <Loader2 size={14} className="animate-spin" />} Invite broker</Button></div>
+        </div>
+      </Modal>
+
+      <Modal open={showCarrier} onClose={() => setShowCarrier(false)} title="Invite carrier" subtitle="The selected carrier company will immediately gain access to this shipment and can update status.">
+        <div className="space-y-4">
+          <Field label="Carrier company">
+            <Select value={carrierId} onChange={(event) => setCarrierId(event.target.value)}>
+              <option value="">Select a carrier</option>
+              {carriers.map((c) => <option key={c.id} value={c.id}>{c.name}{c.city ? ` — ${c.city}` : ""}</option>)}
+            </Select>
+          </Field>
+          {carriers.length === 0 && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700">No registered Carrier company is available yet. Sign up from the Carrier portal first.</p>}
+          <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setShowCarrier(false)}>Cancel</Button><Button disabled={!carrierId || busy} onClick={() => void assignCarrier()}>{busy && <Loader2 size={14} className="animate-spin" />} Invite carrier</Button></div>
         </div>
       </Modal>
     </div>

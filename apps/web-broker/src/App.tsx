@@ -21,7 +21,7 @@ function Guard() {
       </div>
     );
   }
-  if (!live || authed) {
+  if (authed) {
     return (
       <Routes>
         <Route element={<Shell />}>

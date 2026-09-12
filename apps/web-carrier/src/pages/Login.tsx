@@ -9,17 +9,14 @@ import { ApiError } from "@epl/sdk";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { useI18n } from "@/i18n/LanguageContext";
 
-const DEMO_EMAIL = "carrier@oceanflex.test";
-const DEMO_PASSWORD = "carrier123";
-
 type Mode = "login" | "register";
 
 export function Login() {
   const auth = useAuth();
   const { t } = useI18n();
   const [mode, setMode] = useState<Mode>("login");
-  const [email, setEmail] = useState(auth.live ? "" : DEMO_EMAIL);
-  const [password, setPassword] = useState(auth.live ? "" : DEMO_PASSWORD);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [tenantSlug, setTenantSlug] = useState("");
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
@@ -152,26 +149,6 @@ export function Login() {
               {busy ? <Loader2 size={16} className="animate-spin" /> : mode === "login" ? t("login.signIn") : t("login.create")}
             </Button>
 
-            {mode === "login" && !auth.live && (
-              <>
-                <div className="flex items-center gap-2">
-                  <div className="h-px flex-1 bg-slate-200" />
-                  <span className="text-xs text-slate-400">{t("login.or")}</span>
-                  <div className="h-px flex-1 bg-slate-200" />
-                </div>
-                <Button
-                  variant="secondary"
-                  className="w-full"
-                  disabled={busy}
-                  onClick={() => run(() => auth.login(DEMO_EMAIL, DEMO_PASSWORD))}
-                >
-                  {busy ? <Loader2 size={16} className="animate-spin" /> : t("login.demo")}
-                </Button>
-                <p className="text-center text-xs text-slate-400">
-                  {t("login.demoHint")}
-                </p>
-              </>
-            )}
 
             {mode === "register" && (
               <p className="text-center text-xs text-slate-400">
